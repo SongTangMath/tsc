@@ -1,3 +1,4 @@
-ast/*.o
-ast/*.out
+**/*.o
+**/*.out
 .vscode/*
+calculator/a.out.dSYM/

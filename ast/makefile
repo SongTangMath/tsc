@@ -1,13 +1,12 @@
-CC = gcc
-CFLAGS = -std=c++11
+CC = g++
+CFLAGS = -std=c++11 -g -Wall
 
-all: test.out
-
-test.out: test.o token.o
-	g++ -o test.out test.o token.o
-
-test.o: test.cpp
-	$(CC) $(CFLAGS) test.cpp -o test.o -c
-
-token.o: token.cpp
-	$(CC) $(CFLAGS) token.cpp -o token.o -c
+a.out: parser.cpp lex.yy.cpp tsc.tab.cpp
+	$(CC) $(CFLAGS)  -o a.out -std=c++11 parser.cpp lex.yy.cpp tsc.tab.cpp
+	
+lex.yy.cpp: tsc.l parser.h
+	flex --header-file=lex.yy.h -o lex.yy.cpp tsc.l
+tsc.tab.cpp: tsc.y parser.h	
+	bison -d tsc.y -o tsc.tab.cpp
+clean:
+	rm -f a.out lex.yy.cpp lex.yy.h tsc.tab.cpp tsc.tab.h
