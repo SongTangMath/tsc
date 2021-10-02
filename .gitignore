@@ -1,0 +1,3 @@
+ast/*.o
+ast/*.out
+.vscode/*
