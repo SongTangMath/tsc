@@ -1,0 +1,25 @@
+CC = g++
+CFLAGS = -std=c++11 -g -Wall -Wno-deprecated-register
+
+
+CPP_SRC	= lex.yy.cc tsc.tab.cc parser.cc semantics_analysis.cc main.cc
+OBJS	= $(CPP_SRC:.cc=.o)
+
+
+all: $(OBJS)
+	$(CC) $(CFLAGS) $(OBJS)
+
+%.o: %.cc
+	$(CC) -c $(CFLAGS) -o $@ $<
+
+# 得到.cc后会立即尝试编译.如果此时tsc.tab.h还没有生成就会报错
+lex.yy.cc: tsc.l parser.h
+	flex --header-file=lex.yy.h -o lex.yy.cc tsc.l
+	bison -d tsc.y -o tsc.tab.cc
+
+tsc.tab.cc: tsc.y parser.h	
+	
+
+
+clean:
+	rm -f *.out *.o lex.yy.cc lex.yy.h tsc.tab.cc tsc.tab.hh

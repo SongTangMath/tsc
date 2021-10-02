@@ -1,3 +1,11 @@
-ast/*.o
-ast/*.out
+**/*.o
+**/*.out
 .vscode/*
+.idea/*
+cmake-build-debug/*
+calculator_demo/a.out.dSYM/*
+ast/a.out.dSYM/*
+ast/tsc.tab.cc
+ast/tsc.tab.hh
+ast/lex.yy.cc
+ast/lex.yy.h
