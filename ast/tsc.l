@@ -119,8 +119,8 @@ static int check_type(void);
 "&="					{ return AND_ASSIGN; }
 "^="					{ return XOR_ASSIGN; }
 "|="					{ return OR_ASSIGN; }
-">>"					{ return RIGHT_OP; }
-"<<"					{ return LEFT_OP; }
+">>"					{ return RIGHT_SHIFT; }
+"<<"					{ return LEFT_SHIFT; }
 "++"					{ return INC_OP; }
 "--"					{ return DEC_OP; }
 "->"					{ return PTR_OP; }

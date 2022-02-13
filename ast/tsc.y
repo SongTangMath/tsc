@@ -14,7 +14,7 @@ void yyerror(const char *s)
 
 
 %token	IDENTIFIER I_CONSTANT F_CONSTANT STRING_LITERAL FUNC_NAME SIZEOF
-%token	PTR_OP INC_OP DEC_OP LEFT_OP RIGHT_OP LE_OP GE_OP EQ_OP NE_OP
+%token	PTR_OP INC_OP DEC_OP LEFT_SHIFT RIGHT_SHIFT LE_OP GE_OP EQ_OP NE_OP
 %token	AND_OP OR_OP MUL_ASSIGN DIV_ASSIGN MOD_ASSIGN ADD_ASSIGN
 %token	SUB_ASSIGN LEFT_ASSIGN RIGHT_ASSIGN AND_ASSIGN
 %token	XOR_ASSIGN OR_ASSIGN
@@ -40,10 +40,10 @@ void yyerror(const char *s)
 
 primary_expression
 	: IDENTIFIER
-	| constant
+	| constant /* 这里有二义性.constant可以推出 IDENTIFIER constant实际上要在语义分析才能确定 */
 	| string
 	| LEFT_PARENTHESIS expression RIGHT_PARENTHESIS
-	| generic_selection
+	| generic_selection /* C11 generic_selection */
 	;
 
 constant
@@ -57,8 +57,8 @@ enumeration_constant		/* before it has been defined as such */
 	;
 
 string
-	: STRING_LITERAL
-	| FUNC_NAME
+	: STRING_LITERAL /* 支持多个字符串连起来如 "a" "b"等价于 "ab" */
+	| FUNC_NAME /* 在任何函数内部 "__func__" 都隐式表示当前函数名字 */
 	;
 
 generic_selection
@@ -132,14 +132,14 @@ additive_expression
 
 shift_expression
 	: additive_expression
-	| shift_expression LEFT_OP additive_expression
-	| shift_expression RIGHT_OP additive_expression
+	| shift_expression LEFT_SHIFT additive_expression
+	| shift_expression RIGHT_SHIFT additive_expression
 	;
 
 relational_expression
 	: shift_expression
-	| relational_expression '<' shift_expression
-	| relational_expression '>' shift_expression
+	| relational_expression LESS_THAN shift_expression
+	| relational_expression GREATER_THAN shift_expression
 	| relational_expression LE_OP shift_expression
 	| relational_expression GE_OP shift_expression
 	;

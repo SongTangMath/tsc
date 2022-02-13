@@ -186,7 +186,7 @@ evaluation_value evaluate(std::shared_ptr<expression_node> node) {
   return return_value;
 }
 int main() {
-  FILE *file = fopen("a.s", "r+");
+  FILE *file = fopen("a.txt", "r+");
   yyset_in(file);
   yyset_out(stdout);
   yyparse();

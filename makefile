@@ -4,7 +4,7 @@ CFLAGS = -std=c++11 -g -Wall
 all: test.out
 
 test.out: test.o token.o node.o
-	$(CC) -o test.out test.o token.o node.o
+	$(CC) $(CFLAGS) -o test.out test.o token.o node.o
 
 test.o: test.cpp
 	$(CC) $(CFLAGS) test.cpp -o test.o -c

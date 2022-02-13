@@ -1,5 +1,5 @@
 CC = g++
-CFLAGS = -std=c++11 -g -Wall
+CFLAGS = -std=c++11 -g -Wdeprecated-register
 
 a.out: parser.cpp lex.yy.cpp tsc.tab.cpp
 	$(CC) $(CFLAGS)  -o a.out -std=c++11 parser.cpp lex.yy.cpp tsc.tab.cpp
@@ -9,4 +9,4 @@ lex.yy.cpp: tsc.l parser.h
 tsc.tab.cpp: tsc.y parser.h	
 	bison -d tsc.y -o tsc.tab.cpp
 clean:
-	rm -f a.out lex.yy.cpp lex.yy.h tsc.tab.cpp tsc.tab.h
+	rm -f a.out lex.yy.cpp lex.yy.h tsc.tab.cpp tsc.tab.hpp
