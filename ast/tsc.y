@@ -2,13 +2,14 @@
 %{
 #include <stdio.h>
 #include "parser.h"
+#include "lex.yy.h"
 #include "tsc.tab.hpp"
+
 #define YYERROR_VERBOSE 1  
 int yylex ();
-extern char yytext[];
 void yyerror(const char *s)
 {
-	printf("%s\n", s);
+	printf("error line %d %s\n",yyget_lineno(), s);
 }  
 %}
 
@@ -16,7 +17,7 @@ void yyerror(const char *s)
 %token	IDENTIFIER I_CONSTANT F_CONSTANT STRING_LITERAL FUNC_NAME SIZEOF
 %token	PTR_OP INC_OP DEC_OP LEFT_SHIFT RIGHT_SHIFT LE_OP GE_OP EQ_OP NE_OP
 %token	AND_OP OR_OP MUL_ASSIGN DIV_ASSIGN MOD_ASSIGN ADD_ASSIGN
-%token	SUB_ASSIGN LEFT_ASSIGN RIGHT_ASSIGN AND_ASSIGN
+%token	SUB_ASSIGN LEFT_SHIFT_ASSIGN RIGHT_SHIFT_ASSIGN AND_ASSIGN
 %token	XOR_ASSIGN OR_ASSIGN
 %token	TYPEDEF_NAME ENUMERATION_CONSTANT
 
@@ -192,8 +193,8 @@ assignment_operator
 	| MOD_ASSIGN
 	| ADD_ASSIGN
 	| SUB_ASSIGN
-	| LEFT_ASSIGN
-	| RIGHT_ASSIGN
+	| LEFT_SHIFT_ASSIGN
+	| RIGHT_SHIFT_ASSIGN
 	| AND_ASSIGN
 	| XOR_ASSIGN
 	| OR_ASSIGN

@@ -2,7 +2,7 @@ CC = g++
 CFLAGS = -std=c++11 -g -Wdeprecated-register
 
 a.out: parser.cpp lex.yy.cpp tsc.tab.cpp
-	$(CC) $(CFLAGS)  -o a.out -std=c++11 parser.cpp lex.yy.cpp tsc.tab.cpp
+	$(CC) $(CFLAGS)  -o a.out parser.cpp lex.yy.cpp tsc.tab.cpp
 	
 lex.yy.cpp: tsc.l parser.h
 	flex --header-file=lex.yy.h -o lex.yy.cpp tsc.l
