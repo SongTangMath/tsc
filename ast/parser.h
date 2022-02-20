@@ -458,7 +458,8 @@ struct ast_node {
   int node_type;
   int node_sub_type;
   std::vector<std::shared_ptr<ast_node>> items;
-  std::string expression;
+  //保存terminal 否则为空
+  std::shared_ptr<std::string> lexeme;
 };
 
 struct evaluation_value {

@@ -41,52 +41,224 @@ void yyerror(const char *s)
 
 primary_expression
 	: IDENTIFIER
-	| constant /* 这里有二义性.constant可以推出 IDENTIFIER constant实际上要在语义分析才能确定 */
+	{
+        $$.node_type = NODE_TYPE_PRIMARY_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_PRIMARY_EXPRESSION_SUBTYPE_IDENTIFIER;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1)));
+    }
+	| constant 
+	{
+		/* 这里有二义性.constant可以推出 IDENTIFIER constant实际上要在语义分析才能确定 */
+        $$.node_type = NODE_TYPE_PRIMARY_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_PRIMARY_EXPRESSION_SUBTYPE_CONSTANT;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1)));
+    }
 	| string
+	{
+        $$.node_type = NODE_TYPE_PRIMARY_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_PRIMARY_EXPRESSION_SUBTYPE_STRING;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1)));
+    }
 	| LEFT_PARENTHESIS expression RIGHT_PARENTHESIS
+	{
+        $$.node_type = NODE_TYPE_PRIMARY_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_PRIMARY_EXPRESSION_SUBTYPE_LEFT_PARENTHESIS_EXPRESSION_RIGHT_PARENTHESIS;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); // LEFT_PARENTHESIS
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); // expression
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($3))); // RIGHT_PARENTHESIS
+    }
 	| generic_selection /* C11 generic_selection */
+	{
+        $$.node_type = NODE_TYPE_PRIMARY_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_PRIMARY_EXPRESSION_SUBTYPE_GENERIC_SELECTION;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1)));
+    }
 	;
 
 constant
-	: I_CONSTANT		/* includes character_constant */
+	: I_CONSTANT
+	{
+		/* includes character_constant */
+        $$.node_type = NODE_TYPE_CONSTANT;
+        $$.node_sub_type = NODE_TYPE_CONSTANT_SUBTYPE_ICONSTANT;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1)));
+    }		
 	| F_CONSTANT
-	| ENUMERATION_CONSTANT	/* after it has been defined as such */
+	{		
+        $$.node_type = NODE_TYPE_CONSTANT;
+        $$.node_sub_type = NODE_TYPE_CONSTANT_SUBTYPE_FCONSTANT;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1)));
+    }	
+	| ENUMERATION_CONSTANT	
+	{
+		/* after it has been defined as such */
+        $$.node_type = NODE_TYPE_CONSTANT;
+        $$.node_sub_type = NODE_TYPE_CONSTANT_SUBTYPE_ENUMERATION_CONSTANT;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1)));
+    }	
 	;
 
 enumeration_constant		/* before it has been defined as such */
 	: IDENTIFIER
+	{
+        $$.node_type = NODE_TYPE_ENUMERATION_CONSTANT;
+        $$.node_sub_type = NODE_TYPE_ENUMERATION_CONSTANT_SUBTYPE_IDENTIFIER;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1)));
+    }	
 	;
 
 string
-	: STRING_LITERAL /* 支持多个字符串连起来如 "a" "b"等价于 "ab" */
-	| FUNC_NAME /* 在任何函数内部 "__func__" 都隐式表示当前函数名字 */
+	: STRING_LITERAL 
+	{
+		/* 支持多个字符串连起来如 "a" "b"等价于 "ab" */
+        $$.node_type = NODE_TYPE_STRING;
+        $$.node_sub_type = NODE_TYPE_STRING_SUBTYPE_STRING_LITERAL;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1)));
+    }
+	| FUNC_NAME 
+	{
+		/* 在任何函数内部 "__func__" 都隐式表示当前函数名字 */
+        $$.node_type = NODE_TYPE_STRING;
+        $$.node_sub_type = NODE_TYPE_STRING_SUBTYPE_FUNC_NAME;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1)));
+    }	
 	;
 
 generic_selection
 	: GENERIC LEFT_PARENTHESIS assignment_expression COMMA generic_assoc_list RIGHT_PARENTHESIS
+	{
+        $$.node_type = NODE_TYPE_GENERIC_SELECTION;
+        $$.node_sub_type = NODE_TYPE_GENERIC_SELECTION_SUBTYPE_GENERIC_LEFT_PARENTHESIS_ASSIGNMENT_EXPRESSION_COMMA_GENERIC_ASSOC_LIST_RIGHT_PARENTHESIS;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //GENERIC
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //LEFT_PARENTHESIS
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($3))); //assignment_expression
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($4))); //COMMA
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($5))); //generic_assoc_list
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($6))); //RIGHT_PARENTHESIS		
+    }	
 	;
 
 generic_assoc_list
 	: generic_association
+	{
+        $$.node_type = NODE_TYPE_GENERIC_ASSOC_LIST;
+        $$.node_sub_type = NODE_TYPE_GENERIC_ASSOC_LIST_SUBTYPE_GENERIC_ASSOCIATION;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1)));
+    }
 	| generic_assoc_list COMMA generic_association
+	{
+        $$.node_type = NODE_TYPE_GENERIC_ASSOC_LIST;
+        $$.node_sub_type = NODE_TYPE_GENERIC_ASSOC_LIST_SUBTYPE_GENERIC_ASSOC_LIST_COMMA_ASSOCIATION;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //generic_assoc_list
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //COMMA
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($3))); //generic_association
+    }
 	;
 
 generic_association
 	: type_name COLON assignment_expression
+	{
+        $$.node_type = NODE_TYPE_GENERIC_ASSOCIATION;
+        $$.node_sub_type = NODE_TYPE_GENERIC_ASSOCIATION_SUBTYPE_TYPE_NAME_COLON_ASSIGNMENT_EXPRESSION;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //type_name
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //COLON
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($3))); //assignment_expression
+    }
 	| DEFAULT COLON assignment_expression
+	{
+        $$.node_type = NODE_TYPE_GENERIC_ASSOCIATION;
+        $$.node_sub_type = NODE_TYPE_GENERIC_ASSOCIATION_SUBTYPE_DEFAULT_COLON_ASSIGNMENT_EXPRESSION;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //DEFAULT
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //COLON
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($3))); //assignment_expression
+    }
 	;
 
 postfix_expression
 	: primary_expression
+	{
+        $$.node_type = NODE_TYPE_POSTFIX_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_POSTFIX_EXPRESSION_SUBTYPE_PRIMARY_EXPRESSION;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //primary_expression	
+    }
 	| postfix_expression LEFT_BRACKET expression RIGHT_BRACKET
+	{
+        $$.node_type = NODE_TYPE_POSTFIX_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_POSTFIX_EXPRESSION_SUBTYPE_POSTFIX_EXPRESSION_LEFT_BRACKET_EXPRESSION_RIGHT_BRACKET;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //postfix_expression
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //LEFT_BRACKET
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($3))); //expression
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($4))); //RIGHT_BRACKET
+    }
 	| postfix_expression LEFT_PARENTHESIS RIGHT_PARENTHESIS
+	{
+        $$.node_type = NODE_TYPE_POSTFIX_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_POSTFIX_EXPRESSION_SUBTYPE_POSTFIX_EXPRESSION_LEFT_PARENTHESIS_RIGHT_PARENTHESIS;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //postfix_expression
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //LEFT_PARENTHESIS
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($3))); //RIGHT_PARENTHESIS
+    }
 	| postfix_expression LEFT_PARENTHESIS argument_expression_list RIGHT_PARENTHESIS
+	{
+        $$.node_type = NODE_TYPE_POSTFIX_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_POSTFIX_EXPRESSION_SUBTYPE_POSTFIX_EXPRESSION_LEFT_PARENTHESIS_ARGUMENT_EXPRESSION_LIST_RIGHT_PARENTHESIS;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //DEFAULT
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //COLON
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($3))); //assignment_expression
+    }
 	| postfix_expression DOT IDENTIFIER
+	{
+        $$.node_type = NODE_TYPE_POSTFIX_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_POSTFIX_EXPRESSION_SUBTYPE_POSTFIX_EXPRESSION_DOT_IDENTIFIER;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //postfix_expression
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //DOT
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($3))); //IDENTIFIER
+    }
 	| postfix_expression PTR_OP IDENTIFIER
+	{
+        $$.node_type = NODE_TYPE_POSTFIX_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_POSTFIX_EXPRESSION_SUBTYPE_POSTFIX_EXPRESSION_PTR_OP_IDENTIFIER;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //DEFAULT
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //PTR_OP
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($3))); //IDENTIFIER
+    }
 	| postfix_expression INC_OP
+	{
+        $$.node_type = NODE_TYPE_POSTFIX_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_POSTFIX_EXPRESSION_SUBTYPE_POSTFIX_EXPRESSION_INC_OP;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //postfix_expression
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //INC_OP
+    }
 	| postfix_expression DEC_OP
+	{
+        $$.node_type = NODE_TYPE_POSTFIX_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_POSTFIX_EXPRESSION_SUBTYPE_POSTFIX_EXPRESSION_DEC_OP;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //postfix_expression
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //DEC_OP
+    }
 	| LEFT_PARENTHESIS type_name RIGHT_PARENTHESIS LEFT_BRACE initializer_list RIGHT_BRACE
+	{
+        $$.node_type = NODE_TYPE_POSTFIX_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_POSTFIX_EXPRESSION_SUBTYPE_LEFT_PARENTHESIS_TYPE_NAME_RIGHT_PARENTHESIS_LEFT_BRACE_INITIALIZER_LIST_RIGHT_BRACE;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //LEFT_PARENTHESIS
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //type_name
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($3))); //RIGHT_PARENTHESIS
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($4))); //LEFT_BRACE
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($5))); //initializer_list
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($6))); //RIGHT_BRACE
+    }
 	| LEFT_PARENTHESIS type_name RIGHT_PARENTHESIS LEFT_BRACE initializer_list COMMA RIGHT_BRACE
+	{
+        $$.node_type = NODE_TYPE_POSTFIX_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_POSTFIX_EXPRESSION_SUBTYPE_LEFT_PARENTHESIS_TYPE_NAME_RIGHT_PARENTHESIS_LEFT_BRACE_INITIALIZER_LIST_COMMA_RIGHT_BRACE;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //LEFT_PARENTHESIS
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //type_name
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($3))); //RIGHT_PARENTHESIS
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($4))); //LEFT_BRACE
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($5))); //initializer_list
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($6))); //COMMA
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($7))); //RIGHT_BRACE
+    }
 	;
 
 argument_expression_list
