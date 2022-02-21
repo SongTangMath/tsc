@@ -263,113 +263,468 @@ postfix_expression
 
 argument_expression_list
 	: assignment_expression
+	{
+        $$.node_type = NODE_TYPE_ARGUMENT_EXPRESSION_LIST;
+        $$.node_sub_type = NODE_TYPE_ARGUMENT_EXPRESSION_LIST_SUBTYPE_ASSIGNMENT_EXPRESSION;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //assignment_expression
+    }
 	| argument_expression_list COMMA assignment_expression
+	{
+        $$.node_type = NODE_TYPE_ARGUMENT_EXPRESSION_LIST;
+        $$.node_sub_type = NODE_TYPE_ARGUMENT_EXPRESSION_LIST_SUBTYPE_ARGUMENT_EXPRESSION_LIST_COMMA_ASSIGNMENT_EXPRESSION;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //argument_expression_list
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //COMMA
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($3))); //assignment_expression
+    }
 	;
 
 unary_expression
 	: postfix_expression
+	{
+        $$.node_type = NODE_TYPE_UNARY_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_UNARY_EXPRESSION_SUBTYPE_POSTFIX_EXPRESSION;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //postfix_expression
+    }
 	| INC_OP unary_expression
+	{
+        $$.node_type = NODE_TYPE_UNARY_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_UNARY_EXPRESSION_SUBTYPE_INC_OP_UNARY_EXPRESSION;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //INC_OP
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //unary_expression
+    }
 	| DEC_OP unary_expression
+	{
+        $$.node_type = NODE_TYPE_UNARY_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_UNARY_EXPRESSION_SUBTYPE_DEC_OP_UNARY_EXPRESSION;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //DEC_OP
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //unary_expression
+    }
 	| unary_operator cast_expression
+	{
+        $$.node_type = NODE_TYPE_UNARY_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_UNARY_EXPRESSION_SUBTYPE_UNARY_OPERATOR_CAST_EXPRESSION;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //unary_operator
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //cast_expression
+    }
 	| SIZEOF unary_expression
+	{
+        $$.node_type = NODE_TYPE_UNARY_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_UNARY_EXPRESSION_SUBTYPE_SIZEOF_UNARY_EXPRESSION;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //SIZEOF
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //unary_expression
+    }
 	| SIZEOF LEFT_PARENTHESIS type_name RIGHT_PARENTHESIS
+	{
+        $$.node_type = NODE_TYPE_UNARY_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_UNARY_EXPRESSION_SUBTYPE_SIZEOF_LEFT_PARENTHESIS_TYPE_NAME_RIGHT_PARENTHESIS;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //SIZEOF
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //LEFT_PARENTHESIS
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($3))); //type_name
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($4))); //RIGHT_PARENTHESIS
+    }
 	| ALIGNOF LEFT_PARENTHESIS type_name RIGHT_PARENTHESIS
+	{
+        $$.node_type = NODE_TYPE_UNARY_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_UNARY_EXPRESSION_SUBTYPE_ALIGNOF_LEFT_PARENTHESIS_TYPE_NAME_RIGHT_PARENTHESIS;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //ALIGNOF
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //LEFT_PARENTHESIS
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($3))); //type_name
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($4))); //RIGHT_PARENTHESIS
+    }
 	;
 
 unary_operator
 	: BITAND
+	{
+        $$.node_type = NODE_TYPE_UNARY_OPERATOR;
+        $$.node_sub_type = NODE_TYPE_UNARY_OPERATOR_SUBTYPE_BITAND;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1)));
+    }
 	| MUL
+	{
+        $$.node_type = NODE_TYPE_UNARY_OPERATOR;
+        $$.node_sub_type = NODE_TYPE_UNARY_OPERATOR_SUBTYPE_MUL;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1)));
+    }
 	| ADD
+	{
+        $$.node_type = NODE_TYPE_UNARY_OPERATOR;
+        $$.node_sub_type = NODE_TYPE_UNARY_OPERATOR_SUBTYPE_ADD;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1)));
+    }
 	| SUB
+	{
+        $$.node_type = NODE_TYPE_UNARY_OPERATOR;
+        $$.node_sub_type = NODE_TYPE_UNARY_OPERATOR_SUBTYPE_SUB;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1)));
+    }
 	| BITNOT
+	{
+        $$.node_type = NODE_TYPE_UNARY_OPERATOR;
+        $$.node_sub_type = NODE_TYPE_UNARY_OPERATOR_SUBTYPE_BITNOT;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1)));
+    }
 	| OPERATOR_NOT
+	{
+        $$.node_type = NODE_TYPE_UNARY_OPERATOR;
+        $$.node_sub_type = NODE_TYPE_UNARY_OPERATOR_SUBTYPE_OPERATOR_NOT;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1)));
+    }
 	;
 
 cast_expression
 	: unary_expression
+	{
+        $$.node_type = NODE_TYPE_CAST_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_CAST_EXPRESSION_SUBTYPE_UNARY_EXPRESSION;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1)));
+    }
 	| LEFT_PARENTHESIS type_name RIGHT_PARENTHESIS cast_expression
+	{
+        $$.node_type = NODE_TYPE_CAST_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_CAST_EXPRESSION_SUBTYPE_LEFT_PARENTHESIS_TYPE_NAME_RIGHT_PARENTHESIS_CAST_EXPRESSION;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //LEFT_PARENTHESIS
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //type_name
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($3))); //RIGHT_PARENTHESIS
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($4))); //cast_expression
+    }
 	;
 
 multiplicative_expression
 	: cast_expression
+	{
+        $$.node_type = NODE_TYPE_MULTIPLICATIVE_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_MULTIPLICATIVE_EXPRESSION_SUBTYPE_CAST_EXPRESSION;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1)));
+    }
 	| multiplicative_expression MUL cast_expression
+	{
+        $$.node_type = NODE_TYPE_MULTIPLICATIVE_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_MULTIPLICATIVE_EXPRESSION_SUBTYPE_MULTIPLICATIVE_EXPRESSION_MUL_CAST_EXPRESSION;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //multiplicative_expression
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //MUL
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($3))); //cast_expression
+    }
 	| multiplicative_expression DIV cast_expression
+	{
+        $$.node_type = NODE_TYPE_MULTIPLICATIVE_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_MULTIPLICATIVE_EXPRESSION_SUBTYPE_MULTIPLICATIVE_EXPRESSION_DIV_CAST_EXPRESSION;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //multiplicative_expression
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //DIV
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($3))); //cast_expression
+    }
 	| multiplicative_expression MOD cast_expression
+	{
+        $$.node_type = NODE_TYPE_MULTIPLICATIVE_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_MULTIPLICATIVE_EXPRESSION_SUBTYPE_MULTIPLICATIVE_EXPRESSION_MOD_CAST_EXPRESSION;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //multiplicative_expression
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //MOD
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($3))); //cast_expression
+    }
 	;
 
 additive_expression
 	: multiplicative_expression
+	{
+        $$.node_type = NODE_TYPE_ADDITIVE_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_ADDITIVE_EXPRESSION_SUBTYPE_MULTIPLICATIVE_EXPRESSION;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //multiplicative_expression
+    }
 	| additive_expression ADD multiplicative_expression
+	{
+        $$.node_type = NODE_TYPE_ADDITIVE_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_ADDITIVE_EXPRESSION_SUBTYPE_ADDITIVE_EXPRESSION_ADD_MULTIPLICATIVE_EXPRESSION;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //additive_expression
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //ADD
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($3))); //multiplicative_expression
+    }
 	| additive_expression SUB multiplicative_expression
+	{
+        $$.node_type = NODE_TYPE_ADDITIVE_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_ADDITIVE_EXPRESSION_SUBTYPE_ADDITIVE_EXPRESSION_SUB_MULTIPLICATIVE_EXPRESSION;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //additive_expression
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //SUB
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($3))); //multiplicative_expression
+    }
 	;
 
 shift_expression
 	: additive_expression
+	{
+        $$.node_type = NODE_TYPE_SHIFT_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_SHIFT_EXPRESSION_SUBTYPE_ADDITIVE_EXPRESSION;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //additive_expression
+    }
 	| shift_expression LEFT_SHIFT additive_expression
+	{
+        $$.node_type = NODE_TYPE_SHIFT_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_SHIFT_EXPRESSION_SUBTYPE_SHIFT_EXPRESSION_LEFT_SHIFT_ADDITIVE_EXPRESSION;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //shift_expression
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //LEFT_SHIFT
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($3))); //additive_expression
+    }
 	| shift_expression RIGHT_SHIFT additive_expression
+	{
+        $$.node_type = NODE_TYPE_SHIFT_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_SHIFT_EXPRESSION_SUBTYPE_SHIFT_EXPRESSION_RIGHT_SHIFT_ADDITIVE_EXPRESSION;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //shift_expression
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //RIGHT_SHIFT
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($3))); //additive_expression
+    }
 	;
 
 relational_expression
 	: shift_expression
+	{
+        $$.node_type = NODE_TYPE_RELATIONAL_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_RELATIONAL_EXPRESSION_SUBTYPE_SHIFT_EXPRESSION;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //shift_expression
+    }
 	| relational_expression LESS_THAN shift_expression
+	{
+        $$.node_type = NODE_TYPE_RELATIONAL_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_RELATIONAL_EXPRESSION_SUBTYPE_RELATIONAL_EXPRESSION_LESS_THAN_SHIFT_EXPRESSION;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //relational_expression
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //LESS_THAN
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($3))); //shift_expression
+    }
 	| relational_expression GREATER_THAN shift_expression
+	{
+        $$.node_type = NODE_TYPE_RELATIONAL_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_RELATIONAL_EXPRESSION_SUBTYPE_RELATIONAL_EXPRESSION_GREATER_THAN_SHIFT_EXPRESSION;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //relational_expression
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //GREATER_THAN
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($3))); //shift_expression
+    }
 	| relational_expression LE_OP shift_expression
+	{
+        $$.node_type = NODE_TYPE_RELATIONAL_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_RELATIONAL_EXPRESSION_SUBTYPE_RELATIONAL_EXPRESSION_LE_OP_SHIFT_EXPRESSION;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //relational_expression
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //LE_OP
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($3))); //shift_expression
+    }
 	| relational_expression GE_OP shift_expression
+	{
+        $$.node_type = NODE_TYPE_RELATIONAL_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_RELATIONAL_EXPRESSION_SUBTYPE_RELATIONAL_EXPRESSION_GE_OP_SHIFT_EXPRESSION;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //relational_expression
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //GE_OP
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($3))); //shift_expression
+    }
 	;
 
 equality_expression
 	: relational_expression
+	{
+        $$.node_type = NODE_TYPE_EQUALITY_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_EQUALITY_EXPRESSION_SUBTYPE_RELATIONAL_EXPRESSION;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //relational_expression
+    }
 	| equality_expression EQ_OP relational_expression
+	{
+        $$.node_type = NODE_TYPE_EQUALITY_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_EQUALITY_EXPRESSION_SUBTYPE_EQUALITY_EXPRESSION_EQ_OP_RELATIONAL_EXPRESSION;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //equality_expression
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //EQ_OP
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($3))); //relational_expression
+    }
 	| equality_expression NE_OP relational_expression
+	{
+        $$.node_type = NODE_TYPE_EQUALITY_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_EQUALITY_EXPRESSION_SUBTYPE_EQUALITY_EXPRESSION_NE_OP_RELATIONAL_EXPRESSION;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //equality_expression
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //NE_OP
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($3))); //relational_expression
+    }
 	;
 
 and_expression
 	: equality_expression
+	{
+        $$.node_type = NODE_TYPE_AND_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_AND_EXPRESSION_SUBTYPE_EQUALITY_EXPRESSION;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //equality_expression
+    }
 	| and_expression BITAND equality_expression
+	{
+        $$.node_type = NODE_TYPE_AND_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_AND_EXPRESSION_SUBTYPE_AND_EXPRESSION_BITAND_RELATIONAL_EXPRESSION;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //and_expression
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //BITAND
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($3))); //equality_expression
+    }
 	;
 
 exclusive_or_expression
 	: and_expression
+	{
+        $$.node_type = NODE_TYPE_EXCLUSIVE_OR_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_EXCLUSIVE_OR_EXPRESSION_SUBTYPE_AND_EXPRESSION;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //and_expression
+    }
 	| exclusive_or_expression BITXOR and_expression
+	{
+        $$.node_type = NODE_TYPE_EXCLUSIVE_OR_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_EXCLUSIVE_OR_EXPRESSION_SUBTYPE_EXCLUSIVE_OR_EXPRESSION_BITXOR_AND_EXPRESSION;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //exclusive_or_expression
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //BITXOR
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($3))); //and_expression
+    }
 	;
 
 inclusive_or_expression
 	: exclusive_or_expression
+	{
+        $$.node_type = NODE_TYPE_INCLUSIVE_OR_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_INCLUSIVE_OR_EXPRESSION_SUBTYPE_EXCLUSIVE_OR_EXPRESSION;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //exclusive_or_expression
+    }
 	| inclusive_or_expression BITOR exclusive_or_expression
+	{
+        $$.node_type = NODE_TYPE_INCLUSIVE_OR_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_INCLUSIVE_OR_EXPRESSION_SUBTYPE_INCLUSIVE_OR_EXPRESSION_BITOR_EXCLUSIVE_OR_EXPRESSION;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //inclusive_or_expression
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //BITOR
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($3))); //exclusive_or_expression
+    }
 	;
 
 logical_and_expression
 	: inclusive_or_expression
+	{
+        $$.node_type = NODE_TYPE_LOGICAL_AND_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_LOGICAL_AND_EXPRESSION_SUBTYPE_INCLUSIVE_OR_EXPRESSION;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //inclusive_or_expression
+    }
 	| logical_and_expression AND_OP inclusive_or_expression
+	{
+        $$.node_type = NODE_TYPE_LOGICAL_AND_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_LOGICAL_AND_EXPRESSION_SUBTYPE_LOGICAL_AND_EXPRESSION_AND_OP_INCLUSIVE_OR_EXPRESSION;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //logical_and_expression
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //AND_OP
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($3))); //inclusive_or_expression
+    }
 	;
 
 logical_or_expression
 	: logical_and_expression
+	{
+        $$.node_type = NODE_TYPE_LOGICAL_OR_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_LOGICAL_OR_EXPRESSION_SUBTYPE_LOGICAL_AND_EXPRESSION;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //logical_and_expression
+    }
 	| logical_or_expression OR_OP logical_and_expression
+	{
+        $$.node_type = NODE_TYPE_LOGICAL_OR_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_LOGICAL_OR_EXPRESSION_SUBTYPE_LOGICAL_OR_EXPRESSION_OR_OP_LOGICAL_AND_EXPRESSION;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //logical_or_expression
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //OR_OP
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($3))); //NODE_TYPE_LOGICAL_OR_EXPRESSION
+    }
 	;
 
 conditional_expression
 	: logical_or_expression
+	{
+        $$.node_type = NODE_TYPE_CONDITIONAL_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_CONDITIONAL_EXPRESSION_SUBTYPE_LOGICAL_OR_EXPRESSION;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //logical_or_expression
+    }
 	| logical_or_expression QUESTION expression COLON conditional_expression
+	{
+        $$.node_type = NODE_TYPE_CONDITIONAL_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_CONDITIONAL_EXPRESSION_SUBTYPE_LOGICAL_OR_EXPRESSION_QUESTION_EXPRESSION_COLON_CONDITIONAL_EXPRESSION;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //logical_or_expression
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //OR_OP
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($3))); //NODE_TYPE_LOGICAL_OR_EXPRESSION
+    }
 	;
 
 assignment_expression
 	: conditional_expression
+	{
+        $$.node_type = NODE_TYPE_ASSIGNMENT_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_ASSIGNMENT_EXPRESSION_SUBTYPE_CONDITIONAL_EXPRESSION;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //conditional_expression
+    }
 	| unary_expression assignment_operator assignment_expression
+	{
+        $$.node_type = NODE_TYPE_ASSIGNMENT_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_ASSIGNMENT_EXPRESSION_SUBTYPE_UNARY_EXPRESSION_ASSIGNMENT_OPERATOR_ASSIGNMENT_EXPRESSION;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //unary_expression
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //assignment_operator
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($3))); //assignment_expression
+    }
 	;
 
 assignment_operator
 	: ASSIGN
+	{
+        $$.node_type = NODE_TYPE_ASSIGNMENT_OPERATOR;
+        $$.node_sub_type = NODE_TYPE_ASSIGNMENT_OPERATOR_SUBTYPE_ASSIGN;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //ASSIGN
+    }
 	| MUL_ASSIGN
+	{
+        $$.node_type = NODE_TYPE_ASSIGNMENT_OPERATOR;
+        $$.node_sub_type = NODE_TYPE_ASSIGNMENT_OPERATOR_SUBTYPE_MUL_ASSIGN;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //MUL_ASSIGN
+    }
 	| DIV_ASSIGN
+	{
+        $$.node_type = NODE_TYPE_ASSIGNMENT_OPERATOR;
+        $$.node_sub_type = NODE_TYPE_ASSIGNMENT_OPERATOR_SUBTYPE_DIV_ASSIGN;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //DIV_ASSIGN
+    }
 	| MOD_ASSIGN
+	{
+        $$.node_type = NODE_TYPE_ASSIGNMENT_OPERATOR;
+        $$.node_sub_type = NODE_TYPE_ASSIGNMENT_OPERATOR_SUBTYPE_MOD_ASSIGN;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //MOD_ASSIGN
+    }
 	| ADD_ASSIGN
+	{
+        $$.node_type = NODE_TYPE_ASSIGNMENT_OPERATOR;
+        $$.node_sub_type = NODE_TYPE_ASSIGNMENT_OPERATOR_SUBTYPE_ADD_ASSIGN;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //ADD_ASSIGN
+    }
 	| SUB_ASSIGN
+	{
+        $$.node_type = NODE_TYPE_ASSIGNMENT_OPERATOR;
+        $$.node_sub_type = NODE_TYPE_ASSIGNMENT_OPERATOR_SUBTYPE_SUB_ASSIGN;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //SUB_ASSIGN
+    }
 	| LEFT_SHIFT_ASSIGN
+	{
+        $$.node_type = NODE_TYPE_ASSIGNMENT_OPERATOR;
+        $$.node_sub_type = NODE_TYPE_ASSIGNMENT_OPERATOR_SUBTYPE_LEFT_SHIFT_ASSIGN;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //LEFT_SHIFT_ASSIGN
+    }
 	| RIGHT_SHIFT_ASSIGN
+	{
+        $$.node_type = NODE_TYPE_ASSIGNMENT_OPERATOR;
+        $$.node_sub_type = NODE_TYPE_ASSIGNMENT_OPERATOR_SUBTYPE_RIGHT_SHIFT_ASSIGN;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //RIGHT_SHIFT_ASSIGN
+    }
 	| AND_ASSIGN
+	{
+        $$.node_type = NODE_TYPE_ASSIGNMENT_OPERATOR;
+        $$.node_sub_type = NODE_TYPE_ASSIGNMENT_OPERATOR_SUBTYPE_AND_ASSIGN;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //AND_ASSIGN
+    }
 	| XOR_ASSIGN
+	{
+        $$.node_type = NODE_TYPE_ASSIGNMENT_OPERATOR;
+        $$.node_sub_type = NODE_TYPE_ASSIGNMENT_OPERATOR_SUBTYPE_XOR_ASSIGN;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //XOR_ASSIGN
+    }
 	| OR_ASSIGN
+	{
+        $$.node_type = NODE_TYPE_ASSIGNMENT_OPERATOR;
+        $$.node_sub_type = NODE_TYPE_ASSIGNMENT_OPERATOR_SUBTYPE_OR_ASSIGN;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //OR_ASSIGN
+    }
 	;
 
 expression

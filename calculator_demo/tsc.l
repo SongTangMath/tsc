@@ -51,7 +51,7 @@ extern "C" int yywrap(void)        /* called at end of input */
 ("*"|"/"|"%") { printf("Multiply_divide_mod\n"); yylval.expression=yytext; return Multiply_divide_mod; }
 
 
-{WS}+					{ /* whitespace separates tokens */ }
+{WS}+					{ /* whitespace separates tokens */ printf("whitespace length %lu\n",strlen(yytext));}
 .					{ /* discard bad characters */ }
 
 %%

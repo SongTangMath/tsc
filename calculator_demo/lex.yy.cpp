@@ -906,7 +906,7 @@ case 15:
 /* rule 15 can match eol */
 YY_RULE_SETUP
 #line 54 "tsc.l"
-{ /* whitespace separates tokens */ }
+{ /* whitespace separates tokens */ printf("whitespace length %lu\n",strlen(yytext));}
 	YY_BREAK
 case 16:
 YY_RULE_SETUP

@@ -1,5 +1,4 @@
   volatile int a=123;
-
   struct A{
     int a,b;
     double c;

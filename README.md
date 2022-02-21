@@ -1,6 +1,7 @@
 # tsc
 A toy C89 compiler
-
+支持部分C99规范如for语句内的变量声明
+不支持VLA
 
 ## lex/yacc与flex/bison的关系.
 
@@ -34,6 +35,8 @@ yylex在读到EOF的时候会返回0.yyparse根据返回值判断是否读到了
 case YY_STATE_EOF(INITIAL):
 	yyterminate();
 
+yylex有一个while(1)循环.通常来说自定义的action是找到一个token后就返回这个token的类型.如果不想返回token(例如读到了空白字符)
+可以不返回.会继续寻找下个token(yylex的调用方看来就是没读到这个空白而是读到了空白的下个token)
 
 ## lex和yacc的输入文件格式
 
