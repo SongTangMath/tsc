@@ -729,102 +729,427 @@ assignment_operator
 
 expression
 	: assignment_expression
+	{
+        $$.node_type = NODE_TYPE_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_EXPRESSION_SUBTYPE_ASSIGNMENT_EXPRESSION;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //assignment_expression
+    }
 	| expression COMMA assignment_expression
+	{
+        $$.node_type = NODE_TYPE_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_EXPRESSION_SUBTYPE_EXPRESSION_COMMA_ASSIGNMENT_EXPRESSION;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //expression
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //COMMA
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($3))); //assignment_expression
+    }
 	;
 
 constant_expression
-	: conditional_expression	/* with constraints */
+	: conditional_expression
+	{
+		/* with constraints */
+        $$.node_type = NODE_TYPE_CONSTANT_EXPRESSION;
+        $$.node_sub_type = NODE_TYPE_CONSTANT_EXPRESSION_SUBTYPE_CONDITIONAL_EXPRESSION;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //conditional_expression
+    }	
 	;
 
 declaration
 	: declaration_specifiers SEMI_COLON
+	{
+        $$.node_type = NODE_TYPE_DECLARATION;
+        $$.node_sub_type = NODE_TYPE_DECLARATION_SUBTYPE_DECLARATION_SPECIFIERS_SEMI_COLON;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //declaration_specifiers
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //SEMI_COLON
+    }
 	| declaration_specifiers init_declarator_list SEMI_COLON
+	{
+        $$.node_type = NODE_TYPE_DECLARATION;
+        $$.node_sub_type = NODE_TYPE_DECLARATION_SUBTYPE_DECLARATION_SPECIFIERS_INIT_DECLARATOR_LIST_SEMI_COLON;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //declaration_specifiers
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //init_declarator_list
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($3))); //SEMI_COLON
+    }
 	| static_assert_declaration
+	{
+        $$.node_type = NODE_TYPE_DECLARATION;
+        $$.node_sub_type = NODE_TYPE_DECLARATION_SUBTYPE_STATIC_ASSERT_DECLARATION;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //static_assert_declaration
+    }
 	;
 
 declaration_specifiers
 	: storage_class_specifier declaration_specifiers
+	{
+        $$.node_type = NODE_TYPE_DECLARATION_SPECIFIERS;
+        $$.node_sub_type = NODE_TYPE_DECLARATION_SPECIFIERS_SUBTYPE_STORAGE_CLASS_SPECIFIER_DECLARATION_SPECIFIERS;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //storage_class_specifier
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //declaration_specifiers
+    }
 	| storage_class_specifier
+	{
+        $$.node_type = NODE_TYPE_DECLARATION_SPECIFIERS;
+        $$.node_sub_type = NODE_TYPE_DECLARATION_SPECIFIERS_SUBTYPE_STORAGE_CLASS_SPECIFIER;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //storage_class_specifier
+    }
 	| type_specifier declaration_specifiers
+	{
+        $$.node_type = NODE_TYPE_DECLARATION_SPECIFIERS;
+        $$.node_sub_type = NODE_TYPE_DECLARATION_SPECIFIERS_SUBTYPE_TYPE_SPECIFIER_DECLARATION_SPECIFIERS;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //type_specifier
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //declaration_specifiers
+    }
 	| type_specifier
+	{
+        $$.node_type = NODE_TYPE_DECLARATION_SPECIFIERS;
+        $$.node_sub_type = NODE_TYPE_DECLARATION_SPECIFIERS_SUBTYPE_TYPE_SPECIFIER;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //type_specifier
+    }
 	| type_qualifier declaration_specifiers
+	{
+        $$.node_type = NODE_TYPE_DECLARATION_SPECIFIERS;
+        $$.node_sub_type = NODE_TYPE_DECLARATION_SPECIFIERS_SUBTYPE_TYPE_QUALIFIER_DECLARATION_SPECIFIERS;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //type_qualifier
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //declaration_specifiers
+    }
 	| type_qualifier
+	{
+        $$.node_type = NODE_TYPE_DECLARATION_SPECIFIERS;
+        $$.node_sub_type = NODE_TYPE_DECLARATION_SPECIFIERS_SUBTYPE_TYPE_QUALIFIER;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //type_qualifier
+    }
 	| function_specifier declaration_specifiers
+	{
+        $$.node_type = NODE_TYPE_DECLARATION_SPECIFIERS;
+        $$.node_sub_type = NODE_TYPE_DECLARATION_SPECIFIERS_SUBTYPE_FUNCTION_SPECIFIER_DECLARATION_SPECIFIERS;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //function_specifier
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //declaration_specifiers
+    }
 	| function_specifier
+	{
+        $$.node_type = NODE_TYPE_DECLARATION_SPECIFIERS;
+        $$.node_sub_type = NODE_TYPE_DECLARATION_SPECIFIERS_SUBTYPE_FUNCTION_SPECIFIER;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //function_specifier
+    }
 	| alignment_specifier declaration_specifiers
+	{
+        $$.node_type = NODE_TYPE_DECLARATION_SPECIFIERS;
+        $$.node_sub_type = NODE_TYPE_DECLARATION_SPECIFIERS_SUBTYPE_ALIGNMENT_SPECIFIER_DECLARATION_SPECIFIERS;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //alignment_specifier
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //declaration_specifiers
+    }
 	| alignment_specifier
+	{
+        $$.node_type = NODE_TYPE_DECLARATION_SPECIFIERS;
+        $$.node_sub_type = NODE_TYPE_DECLARATION_SPECIFIERS_SUBTYPE_ALIGNMENT_SPECIFIER;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //alignment_specifier
+    }
 	;
 
 init_declarator_list
 	: init_declarator
+	{
+        $$.node_type = NODE_TYPE_INIT_DECLARATOR_LIST;
+        $$.node_sub_type = NODE_TYPE_INIT_DECLARATOR_LIST_SUBTYPE_INIT_DECLARATOR;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //init_declarator
+    }
 	| init_declarator_list COMMA init_declarator
+	{
+        $$.node_type = NODE_TYPE_INIT_DECLARATOR_LIST;
+        $$.node_sub_type = NODE_TYPE_INIT_DECLARATOR_LIST_SUBTYPE_INIT_DECLARATOR_LIST_INIT_DECLARATOR;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //init_declarator_list
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //COMMA
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //init_declarator
+    }
 	;
 
 init_declarator
 	: declarator ASSIGN initializer
+	{
+        $$.node_type = NODE_TYPE_INIT_DECLARATOR;
+        $$.node_sub_type = NODE_TYPE_INIT_DECLARATOR_SUBTYPE_DECLARATOR_ASSIGN_INITIALIZER;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //declarator
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //ASSIGN
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //initializer
+    }
 	| declarator
+	{
+        $$.node_type = NODE_TYPE_INIT_DECLARATOR;
+        $$.node_sub_type = NODE_TYPE_INIT_DECLARATOR_SUBTYPE_DECLARATOR;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //declarator
+    }
 	;
 
 storage_class_specifier
-	: TYPEDEF	/* identifiers must be flagged as TYPEDEF_NAME */
+	: TYPEDEF	
+	{
+		/* identifiers must be flagged as TYPEDEF_NAME */
+        $$.node_type = NODE_TYPE_STORAGE_CLASS_SPECIFIER;
+        $$.node_sub_type = NODE_TYPE_STORAGE_CLASS_SPECIFIER_SUBTYPE_TYPEDEF;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //TYPEDEF
+    }
 	| EXTERN
+	{
+        $$.node_type = NODE_TYPE_STORAGE_CLASS_SPECIFIER;
+        $$.node_sub_type = NODE_TYPE_STORAGE_CLASS_SPECIFIER_SUBTYPE_EXTERN;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //EXTERN
+    }
 	| STATIC
+	{
+        $$.node_type = NODE_TYPE_STORAGE_CLASS_SPECIFIER;
+        $$.node_sub_type = NODE_TYPE_STORAGE_CLASS_SPECIFIER_SUBTYPE_STATIC;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //STATIC
+    }
 	| THREAD_LOCAL
+	{
+        $$.node_type = NODE_TYPE_STORAGE_CLASS_SPECIFIER;
+        $$.node_sub_type = NODE_TYPE_STORAGE_CLASS_SPECIFIER_SUBTYPE_THREAD_LOCAL;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //THREAD_LOCAL
+    }
 	| AUTO
+	{
+        $$.node_type = NODE_TYPE_STORAGE_CLASS_SPECIFIER;
+        $$.node_sub_type = NODE_TYPE_STORAGE_CLASS_SPECIFIER_SUBTYPE_AUTO;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //AUTO
+    }
 	| REGISTER
+	{
+        $$.node_type = NODE_TYPE_STORAGE_CLASS_SPECIFIER;
+        $$.node_sub_type = NODE_TYPE_STORAGE_CLASS_SPECIFIER_SUBTYPE_REGISTER;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //REGISTER
+    }
 	;
 
 type_specifier
 	: VOID
+	{
+        $$.node_type = NODE_TYPE_TYPE_SPECIFIER;
+        $$.node_sub_type = NODE_TYPE_TYPE_SPECIFIER_SUBTYPE_VOID;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //VOID
+    }
 	| CHAR
+	{
+        $$.node_type = NODE_TYPE_TYPE_SPECIFIER;
+        $$.node_sub_type = NODE_TYPE_TYPE_SPECIFIER_SUBTYPE_CHAR;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //CHAR
+    }
 	| SHORT
+	{
+        $$.node_type = NODE_TYPE_TYPE_SPECIFIER;
+        $$.node_sub_type = NODE_TYPE_TYPE_SPECIFIER_SUBTYPE_SHORT;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //SHORT
+    }
 	| INT
+	{
+        $$.node_type = NODE_TYPE_TYPE_SPECIFIER;
+        $$.node_sub_type = NODE_TYPE_TYPE_SPECIFIER_SUBTYPE_INT;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //INT
+    }
 	| LONG
+	{
+        $$.node_type = NODE_TYPE_TYPE_SPECIFIER;
+        $$.node_sub_type = NODE_TYPE_TYPE_SPECIFIER_SUBTYPE_LONG;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //LONG
+    }
 	| FLOAT
+	{
+        $$.node_type = NODE_TYPE_TYPE_SPECIFIER;
+        $$.node_sub_type = NODE_TYPE_TYPE_SPECIFIER_SUBTYPE_FLOAT;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //FLOAT
+    }
 	| DOUBLE
+	{
+        $$.node_type = NODE_TYPE_TYPE_SPECIFIER;
+        $$.node_sub_type = NODE_TYPE_TYPE_SPECIFIER_SUBTYPE_DOUBLE;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //DOUBLE
+    }
 	| SIGNED
+	{
+        $$.node_type = NODE_TYPE_TYPE_SPECIFIER;
+        $$.node_sub_type = NODE_TYPE_TYPE_SPECIFIER_SUBTYPE_SIGNED;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //SIGNED
+    }
 	| UNSIGNED
+	{
+        $$.node_type = NODE_TYPE_TYPE_SPECIFIER;
+        $$.node_sub_type = NODE_TYPE_TYPE_SPECIFIER_SUBTYPE_UNSIGNED;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //UNSIGNED
+    }
 	| BOOL
+	{
+        $$.node_type = NODE_TYPE_TYPE_SPECIFIER;
+        $$.node_sub_type = NODE_TYPE_TYPE_SPECIFIER_SUBTYPE_BOOL;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //BOOL
+    }
 	| COMPLEX
-	| IMAGINARY	  	/* non-mandated extension */
+	{
+        $$.node_type = NODE_TYPE_TYPE_SPECIFIER;
+        $$.node_sub_type = NODE_TYPE_TYPE_SPECIFIER_SUBTYPE_COMPLEX;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //COMPLEX
+    }
+	| IMAGINARY	  
+	{
+		/* non-mandated extension */
+        $$.node_type = NODE_TYPE_TYPE_SPECIFIER;
+        $$.node_sub_type = NODE_TYPE_TYPE_SPECIFIER_SUBTYPE_IMAGINARY;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //IMAGINARY
+    }	
 	| atomic_type_specifier
+	{
+        $$.node_type = NODE_TYPE_TYPE_SPECIFIER;
+        $$.node_sub_type = NODE_TYPE_TYPE_SPECIFIER_SUBTYPE_ATOMIC_TYPE_SPECIFIER;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //atomic_type_specifier
+    }
 	| struct_or_union_specifier
+	{
+        $$.node_type = NODE_TYPE_TYPE_SPECIFIER;
+        $$.node_sub_type = NODE_TYPE_TYPE_SPECIFIER_SUBTYPE_STRUCT_OR_UNION_SPECIFIER;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //struct_or_union_specifier
+    }
 	| enum_specifier
-	| TYPEDEF_NAME		/* after it has been defined as such */
+	{
+        $$.node_type = NODE_TYPE_TYPE_SPECIFIER;
+        $$.node_sub_type = NODE_TYPE_TYPE_SPECIFIER_SUBTYPE_ENUM_SPECIFIER;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //enum_specifier
+    }
+	| TYPEDEF_NAME	
+	{
+		/* after it has been defined as such */
+        $$.node_type = NODE_TYPE_TYPE_SPECIFIER;
+        $$.node_sub_type = NODE_TYPE_TYPE_SPECIFIER_SUBTYPE_TYPEDEF_NAME;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //TYPEDEF_NAME
+    }	
 	;
 
 struct_or_union_specifier
 	: struct_or_union LEFT_BRACE struct_declaration_list RIGHT_BRACE
+	{
+        $$.node_type = NODE_TYPE_STRUCT_OR_UNION_SPECIFIER;
+        $$.node_sub_type = NODE_TYPE_STRUCT_OR_UNION_SPECIFIER_SUBTYPE_STRUCT_OR_UNION_LEFT_BRACE_STRUCT_DECLARATION_LIST_RIGHT_BRACE;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //struct_or_union
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //LEFT_BRACE
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($3))); //struct_declaration_list
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($4))); //RIGHT_BRACE
+    }
 	| struct_or_union IDENTIFIER LEFT_BRACE struct_declaration_list RIGHT_BRACE
+	{
+        $$.node_type = NODE_TYPE_STRUCT_OR_UNION_SPECIFIER;
+        $$.node_sub_type = NODE_TYPE_STRUCT_OR_UNION_SPECIFIER_SUBTYPE_STRUCT_OR_UNION_IDENTIFIER_LEFT_BRACE_STRUCT_DECLARATION_LIST_RIGHT_BRACE;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //struct_or_union
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //IDENTIFIER
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($3))); //LEFT_BRACE
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($4))); //struct_declaration_list
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($5))); //RIGHT_BRACE
+    }
 	| struct_or_union IDENTIFIER
+	{
+        $$.node_type = NODE_TYPE_STRUCT_OR_UNION_SPECIFIER;
+        $$.node_sub_type = NODE_TYPE_STRUCT_OR_UNION_SPECIFIER_SUBTYPE_IDENTIFIER;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //struct_or_union
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //IDENTIFIER
+    }
 	;
 
 struct_or_union
 	: STRUCT
+	{
+        $$.node_type = NODE_TYPE_STRUCT_OR_UNION;
+        $$.node_sub_type = NODE_TYPE_STRUCT_OR_UNION_SUBTYPE_STRUCT;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //STRUCT
+    }
 	| UNION
+	{
+        $$.node_type = NODE_TYPE_STRUCT_OR_UNION;
+        $$.node_sub_type = NODE_TYPE_STRUCT_OR_UNION_SUBTYPE_UNION;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //UNION
+    }
 	;
 
 struct_declaration_list
 	: struct_declaration
+	{
+        $$.node_type = NODE_TYPE_STRUCT_DECLARATION_LIST;
+        $$.node_sub_type = NODE_TYPE_STRUCT_DECLARATION_LIST_SUBTYPE_STRUCT_DECLARATION;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //struct_declaration
+    }
 	| struct_declaration_list struct_declaration
+	{
+        $$.node_type = NODE_TYPE_STRUCT_DECLARATION_LIST;
+        $$.node_sub_type = NODE_TYPE_STRUCT_DECLARATION_LIST_SUBTYPE_STRUCT_DECLARATION_LIST_STRUCT_DECLARATION;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //struct_declaration_list
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //struct_declaration
+    }
 	;
 
 struct_declaration
-	: specifier_qualifier_list SEMI_COLON	/* for anonymous struct/union */
+	: specifier_qualifier_list SEMI_COLON
+	{
+		/* for anonymous struct/union */
+        $$.node_type = NODE_TYPE_STRUCT_DECLARATION;
+        $$.node_sub_type = NODE_TYPE_STRUCT_DECLARATION_SUBTYPE_SPECIFIER_QUALIFIER_LIST_SEMI_COLON;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //specifier_qualifier_list
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //SEMI_COLON
+    }	
 	| specifier_qualifier_list struct_declarator_list SEMI_COLON
+	{
+        $$.node_type = NODE_TYPE_STRUCT_DECLARATION;
+        $$.node_sub_type = NODE_TYPE_STRUCT_DECLARATION_SUBTYPE_SPECIFIER_QUALIFIER_LIST_STRUT_DECLARATOR_LIST_SEMI_COLON;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //specifier_qualifier_list
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //struct_declarator_list
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($3))); //SEMI_COLON
+    }
 	| static_assert_declaration
+	{
+        $$.node_type = NODE_TYPE_STRUCT_DECLARATION;
+        $$.node_sub_type = NODE_TYPE_STRUCT_DECLARATION_SUBTYPE_STATIC_ASSERT_DECLARATION;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //static_assert_declaration
+    }
 	;
 
 specifier_qualifier_list
 	: type_specifier specifier_qualifier_list
+	{
+        $$.node_type = NODE_TYPE_SPECIFIER_QUALIFIER_LIST;
+        $$.node_sub_type = NODE_TYPE_SPECIFIER_QUALIFIER_LIST_SUBTYPE_TYPE_SPECIFIER_SPECIFIER_QUALIFIER_LIST;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //type_specifier
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //specifier_qualifier_list
+    }
 	| type_specifier
+	{
+        $$.node_type = NODE_TYPE_SPECIFIER_QUALIFIER_LIST;
+        $$.node_sub_type = NODE_TYPE_SPECIFIER_QUALIFIER_LIST_SUBTYPE_TYPE_SPECIFIER;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //type_specifier
+    }
 	| type_qualifier specifier_qualifier_list
+	{
+        $$.node_type = NODE_TYPE_SPECIFIER_QUALIFIER_LIST;
+        $$.node_sub_type = NODE_TYPE_SPECIFIER_QUALIFIER_LIST_SUBTYPE_TYPE_QUALIFIER_TYPE_SPECIFIER_QUALIFIER_LIST;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //type_qualifier
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //specifier_qualifier_list
+    }
 	| type_qualifier
+	{
+        $$.node_type = NODE_TYPE_SPECIFIER_QUALIFIER_LIST;
+        $$.node_sub_type = NODE_TYPE_SPECIFIER_QUALIFIER_LIST_SUBTYPE_TYPE_QUALIFIER;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //type_qualifier
+    }
 	;
 
 struct_declarator_list
 	: struct_declarator
+	{
+        $$.node_type = NODE_TYPE_STRUCT_DECLARATOR_LIST;
+        $$.node_sub_type = NODE_TYPE_STRUCT_DECLARATOR_LIST_SUBTYPE_STRUCT_DECLARATOR;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //struct_declarator
+    }
 	| struct_declarator_list COMMA struct_declarator
+	{
+        $$.node_type = NODE_TYPE_STRUCT_DECLARATOR_LIST;
+        $$.node_sub_type = NODE_TYPE_STRUCT_DECLARATOR_LIST_SUBTYPE_STRUCT_DECLARATOR_LIST_COMMA_STRUCT_DECLARATOR;
+        $$.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //struct_declarator_list
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //COMMA
+		$$.items.push_back(std::shared_ptr<ast_node>(new ast_node($3))); //struct_declarator
+    }
 	;
 
 struct_declarator
