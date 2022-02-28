@@ -28,7 +28,6 @@ WS  [ \t\v\n\f]
 
 extern "C" int yywrap(void)        /* called at end of input */
 {
-    printf("eof\n");
     return 1;           /* terminate now */
 }
 

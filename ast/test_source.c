@@ -8,3 +8,4 @@
 int f(a,b)double b;{
     return 0;
 }
+int
