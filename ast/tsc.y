@@ -1626,7 +1626,7 @@ function_specifier
 	{
         ast_node node;
         node.node_type = NODE_TYPE_FUNCTION_SPECIFIER;
-        node.node_sub_type = NODE_TYPE_TYPE_FUNCTION_SPECIFIER_SUBTYPE_INLINE;
+        node.node_sub_type = NODE_TYPE_FUNCTION_SPECIFIER_SUBTYPE_INLINE;
         node.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //INLINE
         $$=node;
     }
@@ -1634,7 +1634,7 @@ function_specifier
 	{
         ast_node node;
         node.node_type = NODE_TYPE_FUNCTION_SPECIFIER;
-        node.node_sub_type = NODE_TYPE_TYPE_FUNCTION_SPECIFIER_SUBTYPE_NORETURN;
+        node.node_sub_type = NODE_TYPE_FUNCTION_SPECIFIER_SUBTYPE_NORETURN;
         node.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //NORETURN
         $$=node;
     }

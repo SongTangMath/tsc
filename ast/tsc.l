@@ -45,117 +45,122 @@ static int check_type(void);
 "/*"                                    { comment(); }
 "//".*                                    { /* consume //-comment */ }
 
-"auto"					{ yylval.lexeme=std::make_shared<std::string>(yytext); return(AUTO); }
-"break"					{ yylval.lexeme=std::make_shared<std::string>(yytext); return(BREAK); }
-"case"					{ yylval.lexeme=std::make_shared<std::string>(yytext); return(CASE); }
-"char"					{ yylval.lexeme=std::make_shared<std::string>(yytext); return(CHAR); }
-"const"					{ yylval.lexeme=std::make_shared<std::string>(yytext); return(CONST); }
-"continue"				{ yylval.lexeme=std::make_shared<std::string>(yytext); return(CONTINUE); }
-"default"				{ yylval.lexeme=std::make_shared<std::string>(yytext); return(DEFAULT); }
-"do"					{ yylval.lexeme=std::make_shared<std::string>(yytext); return(DO); }
-"double"				{ yylval.lexeme=std::make_shared<std::string>(yytext); return(DOUBLE); }
-"else"					{ yylval.lexeme=std::make_shared<std::string>(yytext); return(ELSE); }
-"enum"					{ yylval.lexeme=std::make_shared<std::string>(yytext); return(ENUM); }
-"extern"				{ yylval.lexeme=std::make_shared<std::string>(yytext); return(EXTERN); }
-"float"					{ yylval.lexeme=std::make_shared<std::string>(yytext); return(FLOAT); }
-"for"					{ yylval.lexeme=std::make_shared<std::string>(yytext); return(FOR); }
-"goto"					{ yylval.lexeme=std::make_shared<std::string>(yytext); return(GOTO); }
-"if"					{ yylval.lexeme=std::make_shared<std::string>(yytext); return(IF); }
-"inline"				{ yylval.lexeme=std::make_shared<std::string>(yytext); return(INLINE); }
-"int"					{ yylval.lexeme=std::make_shared<std::string>(yytext); return(INT); }
-"long"					{ yylval.lexeme=std::make_shared<std::string>(yytext); return(LONG); }
-"register"				{ yylval.lexeme=std::make_shared<std::string>(yytext); return(REGISTER); }
-"restrict"				{ yylval.lexeme=std::make_shared<std::string>(yytext); return(RESTRICT); }
-"return"				{ yylval.lexeme=std::make_shared<std::string>(yytext); return(RETURN); }
-"short"					{ yylval.lexeme=std::make_shared<std::string>(yytext); return(SHORT); }
-"signed"				{ yylval.lexeme=std::make_shared<std::string>(yytext); return(SIGNED); }
-"sizeof"				{ yylval.lexeme=std::make_shared<std::string>(yytext); return(SIZEOF); }
-"static"				{ yylval.lexeme=std::make_shared<std::string>(yytext); return(STATIC); }
-"struct"				{ yylval.lexeme=std::make_shared<std::string>(yytext); return(STRUCT); }
-"switch"				{ yylval.lexeme=std::make_shared<std::string>(yytext); return(SWITCH); }
-"typedef"				{ yylval.lexeme=std::make_shared<std::string>(yytext); return(TYPEDEF); }
-"union"					{ yylval.lexeme=std::make_shared<std::string>(yytext); return(UNION); }
-"unsigned"				{ yylval.lexeme=std::make_shared<std::string>(yytext); return(UNSIGNED); }
-"void"					{ yylval.lexeme=std::make_shared<std::string>(yytext); return(VOID); }
-"volatile"				{ yylval.lexeme=std::make_shared<std::string>(yytext); return(VOLATILE); }
-"while"					{ yylval.lexeme=std::make_shared<std::string>(yytext); return(WHILE); }
-"_Alignas"                              { yylval.lexeme=std::make_shared<std::string>(yytext); return ALIGNAS; }
-"_Alignof"                              { yylval.lexeme=std::make_shared<std::string>(yytext); return ALIGNOF; }
-"_Atomic"                               { yylval.lexeme=std::make_shared<std::string>(yytext); return ATOMIC; }
-"_Bool"                                 { yylval.lexeme=std::make_shared<std::string>(yytext); return BOOL; }
-"_Complex"                              { yylval.lexeme=std::make_shared<std::string>(yytext); return COMPLEX; }
-"_Generic"                              { yylval.lexeme=std::make_shared<std::string>(yytext); return GENERIC; }
-"_Imaginary"                            { yylval.lexeme=std::make_shared<std::string>(yytext); return IMAGINARY; }
-"_Noreturn"                             { yylval.lexeme=std::make_shared<std::string>(yytext); return NORETURN; }
-"_Static_assert"                        { yylval.lexeme=std::make_shared<std::string>(yytext); return STATIC_ASSERT; }
-"_Thread_local"                         { yylval.lexeme=std::make_shared<std::string>(yytext); return THREAD_LOCAL; }
-"__func__"                              { yylval.lexeme=std::make_shared<std::string>(yytext); return FUNC_NAME; }
+"auto"					{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return(AUTO); }
+"break"					{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return(BREAK); }
+"case"					{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return(CASE); }
+"char"					{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return(CHAR); }
+"const"					{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return(CONST); }
+"continue"				{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return(CONTINUE); }
+"default"				{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return(DEFAULT); }
+"do"					{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return(DO); }
+"double"				{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return(DOUBLE); }
+"else"					{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return(ELSE); }
+"enum"					{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return(ENUM); }
+"extern"				{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return(EXTERN); }
+"float"					{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return(FLOAT); }
+"for"					{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return(FOR); }
+"goto"					{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return(GOTO); }
+"if"					{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return(IF); }
+"inline"				{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return(INLINE); }
+"int"					{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return(INT); }
+"long"					{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return(LONG); }
+"register"				{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return(REGISTER); }
+"restrict"				{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return(RESTRICT); }
+"return"				{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return(RETURN); }
+"short"					{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return(SHORT); }
+"signed"				{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return(SIGNED); }
+"sizeof"				{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return(SIZEOF); }
+"static"				{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return(STATIC); }
+"struct"				{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return(STRUCT); }
+"switch"				{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return(SWITCH); }
+"typedef"				{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return(TYPEDEF); }
+"union"					{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return(UNION); }
+"unsigned"				{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return(UNSIGNED); }
+"void"					{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return(VOID); }
+"volatile"				{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return(VOLATILE); }
+"while"					{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return(WHILE); }
+"_Alignas"                              { yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return ALIGNAS; }
+"_Alignof"                              { yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return ALIGNOF; }
+"_Atomic"                               { yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return ATOMIC; }
+"_Bool"                                 { yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return BOOL; }
+"_Complex"                              { yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return COMPLEX; }
+"_Generic"                              { yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return GENERIC; }
+"_Imaginary"                            { yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return IMAGINARY; }
+"_Noreturn"                             { yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return NORETURN; }
+"_Static_assert"                        { yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return STATIC_ASSERT; }
+"_Thread_local"                         { yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return THREAD_LOCAL; }
+"__func__"                              { yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return FUNC_NAME; }
 
-{L}{A}*					{ yylval.lexeme=std::make_shared<std::string>(yytext); return check_type(); }
+{L}{A}*					    { yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return check_type(); }
 
-{HP}{H}+{IS}?				{ yylval.lexeme=std::make_shared<std::string>(yytext); return I_CONSTANT; }
-{NZ}{D}*{IS}?				{ yylval.lexeme=std::make_shared<std::string>(yytext); return I_CONSTANT; }
-"0"{O}*{IS}?				{ yylval.lexeme=std::make_shared<std::string>(yytext); return I_CONSTANT; }
-{CP}?"'"([^'\\\n]|{ES})+"'"		{ yylval.lexeme=std::make_shared<std::string>(yytext); return I_CONSTANT; }
+{HP}{H}+{IS}?				{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return I_CONSTANT; }
+{NZ}{D}*{IS}?				{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return I_CONSTANT; }
+"0"{O}*{IS}?				{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return I_CONSTANT; }
+{CP}?"'"([^'\\\n]|{ES})+"'"	{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return I_CONSTANT; }
 
-{D}+{E}{FS}?				{ yylval.lexeme=std::make_shared<std::string>(yytext); return F_CONSTANT; }
-{D}*"."{D}+{E}?{FS}?			{ yylval.lexeme=std::make_shared<std::string>(yytext); return F_CONSTANT; }
-{D}+"."{E}?{FS}?			{ yylval.lexeme=std::make_shared<std::string>(yytext); return F_CONSTANT; }
-{HP}{H}+{P}{FS}?			{ yylval.lexeme=std::make_shared<std::string>(yytext); return F_CONSTANT; }
-{HP}{H}*"."{H}+{P}{FS}?			{ yylval.lexeme=std::make_shared<std::string>(yytext); return F_CONSTANT; }
-{HP}{H}+"."{P}{FS}?			{ yylval.lexeme=std::make_shared<std::string>(yytext); return F_CONSTANT; }
+{D}+{E}{FS}?				{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return F_CONSTANT; }
+{D}*"."{D}+{E}?{FS}?		{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return F_CONSTANT; }
+{D}+"."{E}?{FS}?			{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return F_CONSTANT; }
+{HP}{H}+{P}{FS}?			{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return F_CONSTANT; }
+{HP}{H}*"."{H}+{P}{FS}?		{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return F_CONSTANT; }
+{HP}{H}+"."{P}{FS}?			{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return F_CONSTANT; }
 
-({SP}?\"([^"\\\n]|{ES})*\"{WS}*)+	{ yylval.lexeme=std::make_shared<std::string>(yytext); return STRING_LITERAL; }
+({SP}?\"([^"\\\n]|{ES})*\"{WS}*)+	{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return STRING_LITERAL; }
 
-"..."					{ yylval.lexeme=std::make_shared<std::string>(yytext); return ELLIPSIS; }
-">>="					{ yylval.lexeme=std::make_shared<std::string>(yytext); return RIGHT_SHIFT_ASSIGN; }
-"<<="					{ yylval.lexeme=std::make_shared<std::string>(yytext); return LEFT_SHIFT_ASSIGN; }
-"+="					{ yylval.lexeme=std::make_shared<std::string>(yytext); return ADD_ASSIGN; }
-"-="					{ yylval.lexeme=std::make_shared<std::string>(yytext); return SUB_ASSIGN; }
-"*="					{ yylval.lexeme=std::make_shared<std::string>(yytext); return MUL_ASSIGN; }
-"/="					{ yylval.lexeme=std::make_shared<std::string>(yytext); return DIV_ASSIGN; }
-"%="					{ yylval.lexeme=std::make_shared<std::string>(yytext); return MOD_ASSIGN; }
-"&="					{ yylval.lexeme=std::make_shared<std::string>(yytext); return AND_ASSIGN; }
-"^="					{ yylval.lexeme=std::make_shared<std::string>(yytext); return XOR_ASSIGN; }
-"|="					{ yylval.lexeme=std::make_shared<std::string>(yytext); return OR_ASSIGN; }
-">>"					{ yylval.lexeme=std::make_shared<std::string>(yytext); return RIGHT_SHIFT; }
-"<<"					{ yylval.lexeme=std::make_shared<std::string>(yytext); return LEFT_SHIFT; }
-"++"					{ yylval.lexeme=std::make_shared<std::string>(yytext); return INC_OP; }
-"--"					{ yylval.lexeme=std::make_shared<std::string>(yytext); return DEC_OP; }
-"->"					{ yylval.lexeme=std::make_shared<std::string>(yytext); return PTR_OP; }
-"&&"					{ yylval.lexeme=std::make_shared<std::string>(yytext); return AND_OP; }
-"||"					{ yylval.lexeme=std::make_shared<std::string>(yytext); return OR_OP; }
-"<="					{ yylval.lexeme=std::make_shared<std::string>(yytext); return LE_OP; }
-">="					{ yylval.lexeme=std::make_shared<std::string>(yytext); return GE_OP; }
-"=="					{ yylval.lexeme=std::make_shared<std::string>(yytext); return EQ_OP; }
-"!="					{ yylval.lexeme=std::make_shared<std::string>(yytext); return NE_OP; }
-";"					{ yylval.lexeme=std::make_shared<std::string>(yytext); return SEMI_COLON; }
-("{"|"<%")				{ yylval.lexeme=std::make_shared<std::string>(yytext); return LEFT_BRACE; }
-("}"|"%>")				{ yylval.lexeme=std::make_shared<std::string>(yytext); return RIGHT_BRACE; }
-","					{ yylval.lexeme=std::make_shared<std::string>(yytext); return COMMA; }
-":"					{ yylval.lexeme=std::make_shared<std::string>(yytext); return COLON; }
-"="					{ yylval.lexeme=std::make_shared<std::string>(yytext); return ASSIGN; }
-"("					{ yylval.lexeme=std::make_shared<std::string>(yytext); return LEFT_PARENTHESIS; }
-")"					{ yylval.lexeme=std::make_shared<std::string>(yytext); return RIGHT_PARENTHESIS; }
-("["|"<:")				{ yylval.lexeme=std::make_shared<std::string>(yytext); return LEFT_BRACKET; }
-("]"|":>")				{ yylval.lexeme=std::make_shared<std::string>(yytext); return RIGHT_BRACKET; }
-"."					{ yylval.lexeme=std::make_shared<std::string>(yytext); return DOT; }
-"&"					{ yylval.lexeme=std::make_shared<std::string>(yytext); return BITAND; }
-"!"					{ yylval.lexeme=std::make_shared<std::string>(yytext); return OPERATOR_NOT; }
-"~"					{ yylval.lexeme=std::make_shared<std::string>(yytext); return BITNOT; }
-"-"					{ yylval.lexeme=std::make_shared<std::string>(yytext); return SUB; }
-"+"					{ yylval.lexeme=std::make_shared<std::string>(yytext); return ADD; }
-"*"					{ yylval.lexeme=std::make_shared<std::string>(yytext); return MUL; }
-"/"					{ yylval.lexeme=std::make_shared<std::string>(yytext); return DIV; }
-"%"					{ yylval.lexeme=std::make_shared<std::string>(yytext); return MOD; }
-"<"					{ yylval.lexeme=std::make_shared<std::string>(yytext); return LESS_THAN; }
-">"					{ yylval.lexeme=std::make_shared<std::string>(yytext); return GREATER_THAN; }
-"^"					{ yylval.lexeme=std::make_shared<std::string>(yytext); return BITXOR; }
-"|"					{ yylval.lexeme=std::make_shared<std::string>(yytext); return BITOR; }
-"?"					{ yylval.lexeme=std::make_shared<std::string>(yytext); return QUESTION; }
+"..."					{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return ELLIPSIS; }
+">>="					{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return RIGHT_SHIFT_ASSIGN; }
+"<<="					{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return LEFT_SHIFT_ASSIGN; }
+"+="					{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return ADD_ASSIGN; }
+"-="					{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return SUB_ASSIGN; }
+"*="					{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return MUL_ASSIGN; }
+"/="					{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return DIV_ASSIGN; }
+"%="					{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return MOD_ASSIGN; }
+"&="					{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return AND_ASSIGN; }
+"^="					{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return XOR_ASSIGN; }
+"|="					{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return OR_ASSIGN; }
+">>"					{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return RIGHT_SHIFT; }
+"<<"					{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return LEFT_SHIFT; }
+"++"					{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return INC_OP; }
+"--"					{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return DEC_OP; }
+"->"					{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return PTR_OP; }
+"&&"					{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return AND_OP; }
+"||"					{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return OR_OP; }
+"<="					{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return LE_OP; }
+">="					{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return GE_OP; }
+"=="					{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return EQ_OP; }
+"!="					{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return NE_OP; }
+";"					    { yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return SEMI_COLON; }
+("{"|"<%")				{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return LEFT_BRACE; }
+("}"|"%>")				{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return RIGHT_BRACE; }
+","					    { yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return COMMA; }
+":"					    { yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return COLON; }
+"="					    { yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return ASSIGN; }
+"("					    { yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return LEFT_PARENTHESIS; }
+")"					    { yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return RIGHT_PARENTHESIS; }
+("["|"<:")				{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return LEFT_BRACKET; }
+("]"|":>")				{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return RIGHT_BRACKET; }
+"."					    { yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return DOT; }
+"&"					    { yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return BITAND; }
+"!"					    { yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return OPERATOR_NOT; }
+"~"					    { yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return BITNOT; }
+"-"					    { yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return SUB; }
+"+"					    { yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return ADD; }
+"*"					    { yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return MUL; }
+"/"					    { yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return DIV; }
+"%"					    { yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return MOD; }
+"<"					    { yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return LESS_THAN; }
+">"					    { yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return GREATER_THAN; }
+"^"					    { yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return BITXOR; }
+"|"					    { yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return BITOR; }
+"?"					    { yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return QUESTION; }
 
+
+[ \t]*"\r\n"     { yyset_lineno(yyget_lineno()+1); }
+[ \t]*"\r"       { yyset_lineno(yyget_lineno()+1); }
+[ \t]*"\n"       { yyset_lineno(yyget_lineno()+1); }
+(([ \t]*"\r")|([ \t]*"\n|")|([ \t]*"\r\n"))             { yyset_lineno(yyget_lineno()+1); }
 {WS}+					{ /* whitespace separates tokens */ }
-.					{ /* discard bad characters */ }
+.					    { /* discard bad characters */ }
 
 %%
 
@@ -163,8 +168,14 @@ static int check_type(void);
 static void comment(void)
 {
     int c;
+    char previous = 0;
 
-    while ((c = yyinput()) != 0)
+    while ((c = yyinput()) != 0){
+
+    if(previous == '\r' && c == '\n' || c == '\r' || c == '\n')
+        yyset_lineno(yyget_lineno()+1);
+
+    previous = c;
         if (c == '*')
         {
             while ((c = yyinput()) == '*')
@@ -176,6 +187,7 @@ static void comment(void)
             if (c == 0)
                 break;
         }
+    }
     yyerror("unterminated comment");
 }
 

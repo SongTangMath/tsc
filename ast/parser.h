@@ -265,8 +265,8 @@
 #define NODE_TYPE_TYPE_QUALIFIER_SUBTYPE_ATOMIC 4
 
 #define NODE_TYPE_FUNCTION_SPECIFIER 46
-#define NODE_TYPE_TYPE_FUNCTION_SPECIFIER_SUBTYPE_INLINE 1
-#define NODE_TYPE_TYPE_FUNCTION_SPECIFIER_SUBTYPE_NORETURN 2
+#define NODE_TYPE_FUNCTION_SPECIFIER_SUBTYPE_INLINE 1
+#define NODE_TYPE_FUNCTION_SPECIFIER_SUBTYPE_NORETURN 2
 
 #define NODE_TYPE_ALIGNMENT_SPECIFIER 47
 #define NODE_TYPE_ALIGNMENT_SPECIFIER_SUBTYPE_LEFT_PARENTHESIS_CONSTANT_EXPRESSION_RIGHT_PARENTHESIS 1
@@ -471,7 +471,10 @@ struct ast_node {
   std::vector<std::shared_ptr<ast_node>> items;
   //保存terminal 否则为空
   std::shared_ptr<std::string> lexeme;
+  //对于terminal是此token的行号
+  int line_no;
   std::string get_expression();
+  int get_first_terminal_line_no();
 };
 
 struct evaluation_value {
