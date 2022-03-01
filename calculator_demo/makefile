@@ -1,6 +1,6 @@
 
 a.out: a.cpp lex.yy.cpp tsc.tab.cpp
-	g++ -g -o a.out a.cpp lex.yy.cpp tsc.tab.cpp
+	g++ -std=c++11 -g -o a.out a.cpp lex.yy.cpp tsc.tab.cpp
 	
 lex.yy.cpp: tsc.l a.h
 	flex --header-file=lex.yy.h -o lex.yy.cpp tsc.l

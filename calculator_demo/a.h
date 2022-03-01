@@ -1,9 +1,10 @@
 #ifndef a_h
 #define a_h
 
-#define TSC_DEBUG
+
 #include <string>
 #include <memory>
+#include <vector>
 #define YYSTYPE expression_node
 
 #define NODE_TYPE_EXPRESSION 1
@@ -25,11 +26,10 @@ int yyparse (void);
 struct expression_node {
   int node_type;
   int node_sub_type;
-  std::shared_ptr<expression_node> left;
-  std::shared_ptr<expression_node> operator_token;
-  std::shared_ptr<expression_node> right;
+  std::shared_ptr<std::string> lexeme;
+  std::vector<std::shared_ptr<expression_node>> items;
 
-  std::string expression;
+  std::string get_expression();
 };
 
 struct evaluation_value {

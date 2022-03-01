@@ -835,72 +835,72 @@ do_action:	/* This label is used only to access EOF actions. */
 case 1:
 YY_RULE_SETUP
 #line 35 "tsc.l"
-{ printf("I_CONSTANT1 %s\n",yytext); yylval.expression=yytext; return I_CONSTANT; }
+{ yylval.lexeme=std::shared_ptr<std::string>(new std::string(yytext)); return I_CONSTANT; }
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
 #line 36 "tsc.l"
-{ printf("I_CONSTANT2 %s\n",yytext); yylval.expression=yytext; return I_CONSTANT; }
+{ yylval.lexeme=std::shared_ptr<std::string>(new std::string(yytext)); return I_CONSTANT; }
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
 #line 37 "tsc.l"
-{ printf("I_CONSTANT3 %s\n",yytext); yylval.expression=yytext; return I_CONSTANT; }
+{ yylval.lexeme=std::shared_ptr<std::string>(new std::string(yytext)); return I_CONSTANT; }
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
 #line 38 "tsc.l"
-{ printf("I_CONSTANT4 %s\n",yytext); yylval.expression=yytext; return I_CONSTANT; }
+{ yylval.lexeme=std::shared_ptr<std::string>(new std::string(yytext)); return I_CONSTANT; }
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
 #line 40 "tsc.l"
-{ printf("F_CONSTANT1 %s\n",yytext); yylval.expression=yytext; return F_CONSTANT; }
+{ yylval.lexeme=std::shared_ptr<std::string>(new std::string(yytext)); return F_CONSTANT; }
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
 #line 41 "tsc.l"
-{ printf("F_CONSTANT2 %s\n",yytext); yylval.expression=yytext; return F_CONSTANT; }
+{ yylval.lexeme=std::shared_ptr<std::string>(new std::string(yytext)); return F_CONSTANT; }
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
 #line 42 "tsc.l"
-{ printf("F_CONSTANT3 %s\n",yytext); yylval.expression=yytext; return F_CONSTANT; }
+{ yylval.lexeme=std::shared_ptr<std::string>(new std::string(yytext)); return F_CONSTANT; }
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
 #line 43 "tsc.l"
-{ printf("F_CONSTANT4 %s\n",yytext); yylval.expression=yytext; return F_CONSTANT; }
+{ yylval.lexeme=std::shared_ptr<std::string>(new std::string(yytext)); return F_CONSTANT; }
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
 #line 44 "tsc.l"
-{ printf("F_CONSTANT5 %s\n",yytext); yylval.expression=yytext; return F_CONSTANT; }
+{ yylval.lexeme=std::shared_ptr<std::string>(new std::string(yytext)); return F_CONSTANT; }
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
 #line 45 "tsc.l"
-{ printf("F_CONSTANT6 %s\n",yytext); yylval.expression=yytext; return F_CONSTANT; }
+{ yylval.lexeme=std::shared_ptr<std::string>(new std::string(yytext)); return F_CONSTANT; }
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
 #line 47 "tsc.l"
-{ printf("LEFT_PARENTHESIS %s\n",yytext); yylval.expression=yytext; return LEFT_PARENTHESIS; }
+{ yylval.lexeme=std::shared_ptr<std::string>(new std::string(yytext)); return LEFT_PARENTHESIS; }
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
 #line 48 "tsc.l"
-{ printf("LEFT_PARENTHESIS %s\n",yytext); yylval.expression=yytext; return RIGHT_PARENTHESIS; }
+{ yylval.lexeme=std::shared_ptr<std::string>(new std::string(yytext)); return RIGHT_PARENTHESIS; }
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
 #line 50 "tsc.l"
-{ printf("Add_minus\n"); yylval.expression=yytext; return Add_minus; }
+{ yylval.lexeme=std::shared_ptr<std::string>(new std::string(yytext)); return Add_minus; }
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
 #line 51 "tsc.l"
-{ printf("Multiply_divide_mod\n"); yylval.expression=yytext; return Multiply_divide_mod; }
+{ yylval.lexeme=std::shared_ptr<std::string>(new std::string(yytext)); return Multiply_divide_mod; }
 	YY_BREAK
 case 15:
 /* rule 15 can match eol */

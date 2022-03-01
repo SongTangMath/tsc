@@ -22,29 +22,32 @@ void yyerror(const char *s)
 
 expression:
     additive_expression {
-        $$.node_type=NODE_TYPE_EXPRESSION;
-        $$.node_sub_type=NODE_TYPE_EXPRESSION_SUBTYPE_ADDITIVE_EXPRESSION;
 
-        $$.left=std::shared_ptr<expression_node>(new expression_node($1));
-        $$.expression=$1.expression;
-        root=std::shared_ptr<expression_node>(new expression_node($$));
+        expression_node node;
+        node.node_type=NODE_TYPE_EXPRESSION;
+        node.node_sub_type=NODE_TYPE_EXPRESSION_SUBTYPE_ADDITIVE_EXPRESSION;
+
+        node.items.push_back(std::shared_ptr<expression_node>(new expression_node($1)));
+
+        root=std::shared_ptr<expression_node>(new expression_node(node));
+        $$=node;
         #ifdef TSC_DEBUG 
-        printf("%d %d\n",$$.node_type,$$.node_sub_type); 
+        printf("%d %d\n",node.node_type,node.node_sub_type); 
         #endif
     }
     |  expression Add_minus additive_expression {
-        $$.node_type=NODE_TYPE_EXPRESSION;
-        $$.node_sub_type=NODE_TYPE_EXPRESSION_SUBTYPE_EXPRESSION_ADDMINUS_ADDITIVE_EXPRESSION;
+        expression_node node;
+        node.node_type=NODE_TYPE_EXPRESSION;
+        node.node_sub_type=NODE_TYPE_EXPRESSION_SUBTYPE_EXPRESSION_ADDMINUS_ADDITIVE_EXPRESSION;
 
-        $$.left=std::shared_ptr<expression_node>(new expression_node($1));
-        $$.operator_token=std::shared_ptr<expression_node>(new expression_node($2));
-        $$.right=std::shared_ptr<expression_node>(new expression_node($3));
+        node.items.push_back(std::shared_ptr<expression_node>(new expression_node($1)));
+        node.items.push_back(std::shared_ptr<expression_node>(new expression_node($2)));
+        node.items.push_back(std::shared_ptr<expression_node>(new expression_node($3)));
+        $$=node;
 
-        $$.expression=$1.expression+$2.expression+$3.expression;
-        
-        root=std::shared_ptr<expression_node>(new expression_node($$));
+        root=std::shared_ptr<expression_node>(new expression_node(node));
         #ifdef TSC_DEBUG 
-        printf("%d %d\n",$$.node_type,$$.node_sub_type); 
+        printf("%d %d\n",node.node_type,node.node_sub_type); 
         #endif 
     }
     ;
@@ -52,27 +55,30 @@ expression:
 additive_expression:
     multiplicative_expression
     {
-        $$.node_type=NODE_TYPE_ADDITIVE_EXPRESSION;
-        $$.node_sub_type=NODE_TYPE_ADDITIVE_EXPRESSION_SUBTYPE_MULTIPLICATIVE_EXPRESSION;
+        expression_node node;
+        node.node_type=NODE_TYPE_ADDITIVE_EXPRESSION;
+        node.node_sub_type=NODE_TYPE_ADDITIVE_EXPRESSION_SUBTYPE_MULTIPLICATIVE_EXPRESSION;
 
-        $$.left=std::shared_ptr<expression_node>(new expression_node($1));  
-        $$.expression=$1.expression;      
+        node.items.push_back(std::shared_ptr<expression_node>(new expression_node($1)));
+        $$=node;
+
         #ifdef TSC_DEBUG 
-        printf("%d %d\n",$$.node_type,$$.node_sub_type); 
+        printf("%d %d\n",node.node_type,node.node_sub_type); 
         #endif
     }
     | additive_expression Multiply_divide_mod multiplicative_expression
     {
-        $$.node_type=NODE_TYPE_ADDITIVE_EXPRESSION;
-        $$.node_sub_type=NODE_TYPE_ADDITIVE_EXPRESSION_SUBTYPE_ADDITIVE_EXPRESSION_ADDMINUS_MULTIPLICATIVE_EXPRESSION;
+        expression_node node;
+        node.node_type=NODE_TYPE_ADDITIVE_EXPRESSION;
+        node.node_sub_type=NODE_TYPE_ADDITIVE_EXPRESSION_SUBTYPE_ADDITIVE_EXPRESSION_ADDMINUS_MULTIPLICATIVE_EXPRESSION;
 
-        $$.left=std::shared_ptr<expression_node>(new expression_node($1));  
-        $$.operator_token=std::shared_ptr<expression_node>(new expression_node($2));
-        $$.right=std::shared_ptr<expression_node>(new expression_node($3));   
+        node.items.push_back(std::shared_ptr<expression_node>(new expression_node($1)));
+        node.items.push_back(std::shared_ptr<expression_node>(new expression_node($2)));
+        node.items.push_back(std::shared_ptr<expression_node>(new expression_node($3)));
+        $$=node;
 
-        $$.expression=$1.expression+$2.expression+$3.expression;  
         #ifdef TSC_DEBUG 
-        printf("%d %d\n",$$.node_type,$$.node_sub_type); 
+        printf("%d %d\n",node.node_type,node.node_sub_type); 
         #endif
     }
     ;
@@ -80,30 +86,38 @@ additive_expression:
 multiplicative_expression:
     I_CONSTANT
     {
-        $$.node_type=NODE_TYPE_MULTIPLICATIVE_EXPRESSION;
-        $$.node_sub_type=NODE_TYPE_MULTIPLICATIVE_EXPRESSION_SUBTYPE_ICONSTANT;
-
+        expression_node node;
+        node.node_type=NODE_TYPE_MULTIPLICATIVE_EXPRESSION;
+        node.node_sub_type=NODE_TYPE_MULTIPLICATIVE_EXPRESSION_SUBTYPE_ICONSTANT;
+        node.items.push_back(std::shared_ptr<expression_node>(new expression_node($1)));
+        $$=node;
         #ifdef TSC_DEBUG 
-        printf("%d %d\n",$$.node_type,$$.node_sub_type); 
+        printf("%d %d\n",node.node_type,node.node_sub_type); 
         #endif
     }
     | F_CONSTANT
     {
-        $$.node_type=NODE_TYPE_MULTIPLICATIVE_EXPRESSION;
-        $$.node_sub_type=NODE_TYPE_MULTIPLICATIVE_EXPRESSION_SUBTYPE_FCONSTANT;
+        expression_node node;
+        node.node_type=NODE_TYPE_MULTIPLICATIVE_EXPRESSION;
+        node.node_sub_type=NODE_TYPE_MULTIPLICATIVE_EXPRESSION_SUBTYPE_FCONSTANT;
+        node.items.push_back(std::shared_ptr<expression_node>(new expression_node($1)));
         #ifdef TSC_DEBUG 
-        printf("%d %d\n",$$.node_type,$$.node_sub_type); 
+        printf("%d %d\n",node.node_type,node.node_sub_type); 
         #endif
     }
     | LEFT_PARENTHESIS expression RIGHT_PARENTHESIS
     {
-        $$.node_type=NODE_TYPE_MULTIPLICATIVE_EXPRESSION;
-        $$.node_sub_type=NODE_TYPE_ADDITIVE_EXPRESSION_SUBTYPE_QUOTED_EXPRESSION;
-        $$.left=std::shared_ptr<expression_node>(new expression_node($1));  
-        $$.expression=$1.expression+$2.expression+$3.expression; 
-        
+        expression_node node;
+        node.node_type=NODE_TYPE_MULTIPLICATIVE_EXPRESSION;
+        node.node_sub_type=NODE_TYPE_ADDITIVE_EXPRESSION_SUBTYPE_QUOTED_EXPRESSION;
+        node.items.push_back(std::shared_ptr<expression_node>(new expression_node($1)));
+        node.items.push_back(std::shared_ptr<expression_node>(new expression_node($2)));
+        node.items.push_back(std::shared_ptr<expression_node>(new expression_node($3)));
+
+        $$=node;
+          
         #ifdef TSC_DEBUG 
-        printf("%d %d\n",$$.node_type,$$.node_sub_type); 
+        printf("%d %d\n",node.node_type,node.node_sub_type); 
         #endif
     }
     ;

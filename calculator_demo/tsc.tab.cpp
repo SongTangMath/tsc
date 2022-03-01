@@ -415,7 +415,7 @@ static const yytype_int8 yyrhs[] =
 /* YYRLINE[YYN] -- source line where rule number YYN was defined.  */
 static const yytype_uint8 yyrline[] =
 {
-       0,    24,    24,    35,    53,    64,    81,    90,    98
+       0,    24,    24,    38,    56,    69,    87,    98,   108
 };
 #endif
 
@@ -1321,108 +1321,122 @@ yyreduce:
         case 2:
 #line 24 "tsc.y"
     {
-        (yyval).node_type=NODE_TYPE_EXPRESSION;
-        (yyval).node_sub_type=NODE_TYPE_EXPRESSION_SUBTYPE_ADDITIVE_EXPRESSION;
 
-        (yyval).left=std::shared_ptr<expression_node>(new expression_node((yyvsp[(1) - (1)])));
-        (yyval).expression=(yyvsp[(1) - (1)]).expression;
-        root=std::shared_ptr<expression_node>(new expression_node((yyval)));
+        expression_node node;
+        node.node_type=NODE_TYPE_EXPRESSION;
+        node.node_sub_type=NODE_TYPE_EXPRESSION_SUBTYPE_ADDITIVE_EXPRESSION;
+
+        node.items.push_back(std::shared_ptr<expression_node>(new expression_node((yyvsp[(1) - (1)]))));
+
+        root=std::shared_ptr<expression_node>(new expression_node(node));
+        (yyval)=node;
         #ifdef TSC_DEBUG 
-        printf("%d %d\n",(yyval).node_type,(yyval).node_sub_type); 
+        printf("%d %d\n",node.node_type,node.node_sub_type); 
         #endif
     ;}
     break;
 
   case 3:
-#line 35 "tsc.y"
+#line 38 "tsc.y"
     {
-        (yyval).node_type=NODE_TYPE_EXPRESSION;
-        (yyval).node_sub_type=NODE_TYPE_EXPRESSION_SUBTYPE_EXPRESSION_ADDMINUS_ADDITIVE_EXPRESSION;
+        expression_node node;
+        node.node_type=NODE_TYPE_EXPRESSION;
+        node.node_sub_type=NODE_TYPE_EXPRESSION_SUBTYPE_EXPRESSION_ADDMINUS_ADDITIVE_EXPRESSION;
 
-        (yyval).left=std::shared_ptr<expression_node>(new expression_node((yyvsp[(1) - (3)])));
-        (yyval).operator_token=std::shared_ptr<expression_node>(new expression_node((yyvsp[(2) - (3)])));
-        (yyval).right=std::shared_ptr<expression_node>(new expression_node((yyvsp[(3) - (3)])));
+        node.items.push_back(std::shared_ptr<expression_node>(new expression_node((yyvsp[(1) - (3)]))));
+        node.items.push_back(std::shared_ptr<expression_node>(new expression_node((yyvsp[(2) - (3)]))));
+        node.items.push_back(std::shared_ptr<expression_node>(new expression_node((yyvsp[(3) - (3)]))));
+        (yyval)=node;
 
-        (yyval).expression=(yyvsp[(1) - (3)]).expression+(yyvsp[(2) - (3)]).expression+(yyvsp[(3) - (3)]).expression;
-        
-        root=std::shared_ptr<expression_node>(new expression_node((yyval)));
+        root=std::shared_ptr<expression_node>(new expression_node(node));
         #ifdef TSC_DEBUG 
-        printf("%d %d\n",(yyval).node_type,(yyval).node_sub_type); 
+        printf("%d %d\n",node.node_type,node.node_sub_type); 
         #endif 
     ;}
     break;
 
   case 4:
-#line 54 "tsc.y"
+#line 57 "tsc.y"
     {
-        (yyval).node_type=NODE_TYPE_ADDITIVE_EXPRESSION;
-        (yyval).node_sub_type=NODE_TYPE_ADDITIVE_EXPRESSION_SUBTYPE_MULTIPLICATIVE_EXPRESSION;
+        expression_node node;
+        node.node_type=NODE_TYPE_ADDITIVE_EXPRESSION;
+        node.node_sub_type=NODE_TYPE_ADDITIVE_EXPRESSION_SUBTYPE_MULTIPLICATIVE_EXPRESSION;
 
-        (yyval).left=std::shared_ptr<expression_node>(new expression_node((yyvsp[(1) - (1)])));  
-        (yyval).expression=(yyvsp[(1) - (1)]).expression;      
+        node.items.push_back(std::shared_ptr<expression_node>(new expression_node((yyvsp[(1) - (1)]))));
+        (yyval)=node;
+
         #ifdef TSC_DEBUG 
-        printf("%d %d\n",(yyval).node_type,(yyval).node_sub_type); 
+        printf("%d %d\n",node.node_type,node.node_sub_type); 
         #endif
     ;}
     break;
 
   case 5:
-#line 65 "tsc.y"
+#line 70 "tsc.y"
     {
-        (yyval).node_type=NODE_TYPE_ADDITIVE_EXPRESSION;
-        (yyval).node_sub_type=NODE_TYPE_ADDITIVE_EXPRESSION_SUBTYPE_ADDITIVE_EXPRESSION_ADDMINUS_MULTIPLICATIVE_EXPRESSION;
+        expression_node node;
+        node.node_type=NODE_TYPE_ADDITIVE_EXPRESSION;
+        node.node_sub_type=NODE_TYPE_ADDITIVE_EXPRESSION_SUBTYPE_ADDITIVE_EXPRESSION_ADDMINUS_MULTIPLICATIVE_EXPRESSION;
 
-        (yyval).left=std::shared_ptr<expression_node>(new expression_node((yyvsp[(1) - (3)])));  
-        (yyval).operator_token=std::shared_ptr<expression_node>(new expression_node((yyvsp[(2) - (3)])));
-        (yyval).right=std::shared_ptr<expression_node>(new expression_node((yyvsp[(3) - (3)])));   
+        node.items.push_back(std::shared_ptr<expression_node>(new expression_node((yyvsp[(1) - (3)]))));
+        node.items.push_back(std::shared_ptr<expression_node>(new expression_node((yyvsp[(2) - (3)]))));
+        node.items.push_back(std::shared_ptr<expression_node>(new expression_node((yyvsp[(3) - (3)]))));
+        (yyval)=node;
 
-        (yyval).expression=(yyvsp[(1) - (3)]).expression+(yyvsp[(2) - (3)]).expression+(yyvsp[(3) - (3)]).expression;  
         #ifdef TSC_DEBUG 
-        printf("%d %d\n",(yyval).node_type,(yyval).node_sub_type); 
+        printf("%d %d\n",node.node_type,node.node_sub_type); 
         #endif
     ;}
     break;
 
   case 6:
-#line 82 "tsc.y"
+#line 88 "tsc.y"
     {
-        (yyval).node_type=NODE_TYPE_MULTIPLICATIVE_EXPRESSION;
-        (yyval).node_sub_type=NODE_TYPE_MULTIPLICATIVE_EXPRESSION_SUBTYPE_ICONSTANT;
-
+        expression_node node;
+        node.node_type=NODE_TYPE_MULTIPLICATIVE_EXPRESSION;
+        node.node_sub_type=NODE_TYPE_MULTIPLICATIVE_EXPRESSION_SUBTYPE_ICONSTANT;
+        node.items.push_back(std::shared_ptr<expression_node>(new expression_node((yyvsp[(1) - (1)]))));
+        (yyval)=node;
         #ifdef TSC_DEBUG 
-        printf("%d %d\n",(yyval).node_type,(yyval).node_sub_type); 
+        printf("%d %d\n",node.node_type,node.node_sub_type); 
         #endif
     ;}
     break;
 
   case 7:
-#line 91 "tsc.y"
+#line 99 "tsc.y"
     {
-        (yyval).node_type=NODE_TYPE_MULTIPLICATIVE_EXPRESSION;
-        (yyval).node_sub_type=NODE_TYPE_MULTIPLICATIVE_EXPRESSION_SUBTYPE_FCONSTANT;
+        expression_node node;
+        node.node_type=NODE_TYPE_MULTIPLICATIVE_EXPRESSION;
+        node.node_sub_type=NODE_TYPE_MULTIPLICATIVE_EXPRESSION_SUBTYPE_FCONSTANT;
+        node.items.push_back(std::shared_ptr<expression_node>(new expression_node((yyvsp[(1) - (1)]))));
         #ifdef TSC_DEBUG 
-        printf("%d %d\n",(yyval).node_type,(yyval).node_sub_type); 
+        printf("%d %d\n",node.node_type,node.node_sub_type); 
         #endif
     ;}
     break;
 
   case 8:
-#line 99 "tsc.y"
+#line 109 "tsc.y"
     {
-        (yyval).node_type=NODE_TYPE_MULTIPLICATIVE_EXPRESSION;
-        (yyval).node_sub_type=NODE_TYPE_ADDITIVE_EXPRESSION_SUBTYPE_QUOTED_EXPRESSION;
-        (yyval).left=std::shared_ptr<expression_node>(new expression_node((yyvsp[(1) - (3)])));  
-        (yyval).expression=(yyvsp[(1) - (3)]).expression+(yyvsp[(2) - (3)]).expression+(yyvsp[(3) - (3)]).expression; 
-        
+        expression_node node;
+        node.node_type=NODE_TYPE_MULTIPLICATIVE_EXPRESSION;
+        node.node_sub_type=NODE_TYPE_ADDITIVE_EXPRESSION_SUBTYPE_QUOTED_EXPRESSION;
+        node.items.push_back(std::shared_ptr<expression_node>(new expression_node((yyvsp[(1) - (3)]))));
+        node.items.push_back(std::shared_ptr<expression_node>(new expression_node((yyvsp[(2) - (3)]))));
+        node.items.push_back(std::shared_ptr<expression_node>(new expression_node((yyvsp[(3) - (3)]))));
+
+        (yyval)=node;
+          
         #ifdef TSC_DEBUG 
-        printf("%d %d\n",(yyval).node_type,(yyval).node_sub_type); 
+        printf("%d %d\n",node.node_type,node.node_sub_type); 
         #endif
     ;}
     break;
 
 
 /* Line 1267 of yacc.c.  */
-#line 1426 "tsc.tab.cpp"
+#line 1440 "tsc.tab.cpp"
       default: break;
     }
   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);
@@ -1636,7 +1650,7 @@ yyreturn:
 }
 
 
-#line 112 "tsc.y"
+#line 126 "tsc.y"
 
 
 

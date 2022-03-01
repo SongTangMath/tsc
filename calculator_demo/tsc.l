@@ -32,23 +32,23 @@ extern "C" int yywrap(void)        /* called at end of input */
 
 %%
 
-{HP}{H}+{IS}?				{ printf("I_CONSTANT1 %s\n",yytext); yylval.expression=yytext; return I_CONSTANT; }
-{NZ}{D}*{IS}?				{ printf("I_CONSTANT2 %s\n",yytext); yylval.expression=yytext; return I_CONSTANT; }
-"0"{O}*{IS}?				{ printf("I_CONSTANT3 %s\n",yytext); yylval.expression=yytext; return I_CONSTANT; }
-{CP}?"'"([^'\\\n]|{ES})+"'"		{ printf("I_CONSTANT4 %s\n",yytext); yylval.expression=yytext; return I_CONSTANT; }
+{HP}{H}+{IS}?				{ yylval.lexeme=std::shared_ptr<std::string>(new std::string(yytext)); return I_CONSTANT; }
+{NZ}{D}*{IS}?				{ yylval.lexeme=std::shared_ptr<std::string>(new std::string(yytext)); return I_CONSTANT; }
+"0"{O}*{IS}?				{ yylval.lexeme=std::shared_ptr<std::string>(new std::string(yytext)); return I_CONSTANT; }
+{CP}?"'"([^'\\\n]|{ES})+"'"		{ yylval.lexeme=std::shared_ptr<std::string>(new std::string(yytext)); return I_CONSTANT; }
 
-{D}+{E}{FS}?				{ printf("F_CONSTANT1 %s\n",yytext); yylval.expression=yytext; return F_CONSTANT; }
-{D}*"."{D}+{E}?{FS}?			{ printf("F_CONSTANT2 %s\n",yytext); yylval.expression=yytext; return F_CONSTANT; }
-{D}+"."{E}?{FS}?			{ printf("F_CONSTANT3 %s\n",yytext); yylval.expression=yytext; return F_CONSTANT; }
-{HP}{H}+{P}{FS}?			{ printf("F_CONSTANT4 %s\n",yytext); yylval.expression=yytext; return F_CONSTANT; }
-{HP}{H}*"."{H}+{P}{FS}?			{ printf("F_CONSTANT5 %s\n",yytext); yylval.expression=yytext; return F_CONSTANT; }
-{HP}{H}+"."{P}{FS}?			{ printf("F_CONSTANT6 %s\n",yytext); yylval.expression=yytext; return F_CONSTANT; }
+{D}+{E}{FS}?				{ yylval.lexeme=std::shared_ptr<std::string>(new std::string(yytext)); return F_CONSTANT; }
+{D}*"."{D}+{E}?{FS}?			{ yylval.lexeme=std::shared_ptr<std::string>(new std::string(yytext)); return F_CONSTANT; }
+{D}+"."{E}?{FS}?			{ yylval.lexeme=std::shared_ptr<std::string>(new std::string(yytext)); return F_CONSTANT; }
+{HP}{H}+{P}{FS}?			{ yylval.lexeme=std::shared_ptr<std::string>(new std::string(yytext)); return F_CONSTANT; }
+{HP}{H}*"."{H}+{P}{FS}?			{ yylval.lexeme=std::shared_ptr<std::string>(new std::string(yytext)); return F_CONSTANT; }
+{HP}{H}+"."{P}{FS}?			{ yylval.lexeme=std::shared_ptr<std::string>(new std::string(yytext)); return F_CONSTANT; }
 
-"("					{ printf("LEFT_PARENTHESIS %s\n",yytext); yylval.expression=yytext; return LEFT_PARENTHESIS; }
-")"					{ printf("LEFT_PARENTHESIS %s\n",yytext); yylval.expression=yytext; return RIGHT_PARENTHESIS; }
+"("					{ yylval.lexeme=std::shared_ptr<std::string>(new std::string(yytext)); return LEFT_PARENTHESIS; }
+")"					{ yylval.lexeme=std::shared_ptr<std::string>(new std::string(yytext)); return RIGHT_PARENTHESIS; }
 
-("+"|"-") { printf("Add_minus\n"); yylval.expression=yytext; return Add_minus; }
-("*"|"/"|"%") { printf("Multiply_divide_mod\n"); yylval.expression=yytext; return Multiply_divide_mod; }
+("+"|"-") { yylval.lexeme=std::shared_ptr<std::string>(new std::string(yytext)); return Add_minus; }
+("*"|"/"|"%") { yylval.lexeme=std::shared_ptr<std::string>(new std::string(yytext)); return Multiply_divide_mod; }
 
 
 {WS}+					{ /* whitespace separates tokens */ printf("whitespace length %lu\n",strlen(yytext));}

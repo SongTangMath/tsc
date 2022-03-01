@@ -1,5 +1,5 @@
 CC = g++
-CFLAGS = -std=c++11 -g -Wdeprecated-register
+CFLAGS = -std=c++11 -g -Wall -Wno-deprecated-register
 
 a.out: parser.cpp lex.yy.cpp tsc.tab.cpp
 	$(CC) $(CFLAGS)  -o a.out parser.cpp lex.yy.cpp tsc.tab.cpp

@@ -4,6 +4,18 @@
 
 std::shared_ptr<expression_node> root;
 
+std::string expression_node::get_expression(){
+  if(lexeme)return *lexeme;
+  std::string expr;
+  for(size_t i=0;i<items.size()-1;i++ ){
+    expr+=items[i]->get_expression();
+    expr+=" ";
+  }
+  expr+=items[items.size()-1]->get_expression();
+  return expr;
+  
+}
+
 void evaluation_value::print_value() {
   if (!is_valid) {
     printf("invalid value\n");
@@ -132,11 +144,11 @@ evaluation_value evaluate(std::shared_ptr<expression_node> node) {
   case NODE_TYPE_EXPRESSION: {
     switch (node->node_sub_type) {
     case NODE_TYPE_EXPRESSION_SUBTYPE_ADDITIVE_EXPRESSION:
-      return evaluate(node->left);
+      return evaluate(node->items[0]);
     case NODE_TYPE_EXPRESSION_SUBTYPE_EXPRESSION_ADDMINUS_ADDITIVE_EXPRESSION: {
-      evaluation_value left = evaluate(node->left);
-      evaluation_value right = evaluate(node->right);
-      return_value = evaluate(node->operator_token->expression, left, right);
+      evaluation_value left = evaluate(node->items[0]);
+      evaluation_value right = evaluate(node->items[2]);
+      return_value = evaluate(node->items[1]->get_expression(), left, right);
       return return_value;
     }
     }
@@ -145,11 +157,11 @@ evaluation_value evaluate(std::shared_ptr<expression_node> node) {
   case NODE_TYPE_ADDITIVE_EXPRESSION: {
     switch (node->node_sub_type) {
     case NODE_TYPE_ADDITIVE_EXPRESSION_SUBTYPE_MULTIPLICATIVE_EXPRESSION:
-      return evaluate(node->left);
+      return evaluate(node->items[0]);
     case NODE_TYPE_ADDITIVE_EXPRESSION_SUBTYPE_ADDITIVE_EXPRESSION_ADDMINUS_MULTIPLICATIVE_EXPRESSION: {
-      evaluation_value left = evaluate(node->left);
-      evaluation_value right = evaluate(node->right);
-      return_value = evaluate(node->operator_token->expression, left, right);
+      evaluation_value left = evaluate(node->items[0]);
+      evaluation_value right = evaluate(node->items[2]);
+      return_value = evaluate(node->items[1]->get_expression(), left, right);
       return return_value;
     }
     }
@@ -160,19 +172,18 @@ evaluation_value evaluate(std::shared_ptr<expression_node> node) {
     switch (node->node_sub_type) {
     case NODE_TYPE_MULTIPLICATIVE_EXPRESSION_SUBTYPE_ICONSTANT: {
       return_value.type = EVALUATION_TYPE_INT;
-      return_value.int_value = atoi(node->expression.c_str());
+      return_value.int_value = atoi(node->items[0]->get_expression().c_str());
       return return_value;
     }
 
     case NODE_TYPE_MULTIPLICATIVE_EXPRESSION_SUBTYPE_FCONSTANT: {
       return_value.type = EVALUATION_TYPE_DOUBLE;
-      return_value.int_value = atof(node->expression.c_str());
+      return_value.int_value = atof(node->items[0]->get_expression().c_str());
       return return_value;
     }
     case NODE_TYPE_ADDITIVE_EXPRESSION_SUBTYPE_QUOTED_EXPRESSION: {
-      evaluation_value left = evaluate(node->left);
-      evaluation_value right = evaluate(node->right);
-      return_value = evaluate(node->left);
+      // 0,2位置分别是左右括号
+      return_value = evaluate(node->items[1]);
       return return_value;
     }
     }
@@ -190,7 +201,8 @@ int main() {
   yyset_in(file);
   yyset_out(stdout);
   yyparse();
-
+  for(size_t i=0;i<root->items.size();i++)
+  printf("%s\n",root->items[i]->get_expression().c_str());
   evaluation_value value = evaluate(root);
   value.print_value();
   fclose(file);
