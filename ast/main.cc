@@ -4,7 +4,8 @@
 #include "semantics_analysis.h"
 
 int main() {
-  FILE *file = fopen("test_source.c", "r+");
+  input_file_name = "test_source.c";
+  FILE *file = fopen(input_file_name.c_str(), "r+");
   yyset_in(file);
   yyset_out(stdout);
   int parse_result = yyparse();

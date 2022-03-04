@@ -486,6 +486,7 @@ struct evaluation_value {
 };
 
 extern std::shared_ptr<ast_node> translation_unit;
+extern std::string input_file_name;
 
 int evaluate(std::string operator_token, int left, int right);
 double evaluate(std::string operator_token, int left, double right);

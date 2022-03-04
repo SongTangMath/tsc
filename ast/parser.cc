@@ -3,6 +3,7 @@
 #include "lex.yy.h"
 
 std::shared_ptr<ast_node> translation_unit;
+std::string input_file_name;
 
 std::string ast_node::get_expression() {
   if (lexeme)

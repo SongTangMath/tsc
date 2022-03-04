@@ -4,7 +4,7 @@
 .idea/*
 calculator_demo/a.out.dSYM/*
 ast/a.out.dSYM/*
-ast/tsc.tab.cpp
-ast/tsc.tab.hpp
-ast/lex.yy.cpp
+ast/tsc.tab.cc
+ast/tsc.tab.hh
+ast/lex.yy.cc
 ast/lex.yy.h

@@ -30,6 +30,9 @@ struct tsc_type {
   bool is_static;
   bool is_register;
 
+  bool is_inline;
+  bool is_noreturn;
+
   int type_id;
 };
 
@@ -56,3 +59,6 @@ int check_type_qualifiers(std::vector<std::shared_ptr<ast_node>> &type_qualifier
 
 int check_storage_class_specifiers(std::vector<std::shared_ptr<ast_node>> &storage_class_specifiers, bool is_global,
                                    std::shared_ptr<tsc_type> type);
+
+int check_function_specifiers(std::vector<std::shared_ptr<ast_node>> &function_specifiers, bool is_global,
+                              std::shared_ptr<tsc_type> type);

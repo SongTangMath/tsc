@@ -1,7 +1,9 @@
-
+// comment
 // comment
 /*
-
 aa
+
 */
-extern extern long a;
+int a;
+int b;
+extern extern int c;

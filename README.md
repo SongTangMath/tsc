@@ -237,6 +237,15 @@ _Noreturn告诉编译器函数之后的代码不可达(如调用了abort()等)
 
 ANSI C grammar, Lex specification来自
 http://www.quut.com/c/ANSI-C-grammar-l-2011.html
+
+Note: The following %-parameters are the minimum sizes needed for real Lex.
+%e	number of parsed tree nodes
+%p	number of positions
+%n	number of states
+%k	number of packed character classes
+%a	number of transitions
+%o	size of output array
+
 ANSI C Yacc grammar来自
 http://www.quut.com/c/ANSI-C-grammar-y.html
 

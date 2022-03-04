@@ -3,13 +3,13 @@
 #include <stdio.h>
 #include "parser.h"
 #include "lex.yy.h"
-#include "tsc.tab.hpp"
+#include "tsc.tab.hh"
 
 #define YYERROR_VERBOSE 1  
 int yylex ();
 void yyerror(const char *s)
 {
-	printf("error line %d %s\n",yyget_lineno(), s);
+	printf("%s:%d\n\t%s\n",input_file_name.c_str(), yyget_lineno(), s);
 }  
 %}
 

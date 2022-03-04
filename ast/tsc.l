@@ -23,7 +23,7 @@ WS  [ \t\v\n\f]
 
 %{
 #include "parser.h"
-#include "tsc.tab.hpp"
+#include "tsc.tab.hh"
 #include "stdio.h"
 
 extern "C" int yywrap(void)        /* called at end of input */
@@ -158,8 +158,8 @@ static int check_type(void);
 [ \t]*"\r\n"     { yyset_lineno(yyget_lineno()+1); }
 [ \t]*"\r"       { yyset_lineno(yyget_lineno()+1); }
 [ \t]*"\n"       { yyset_lineno(yyget_lineno()+1); }
-(([ \t]*"\r")|([ \t]*"\n|")|([ \t]*"\r\n"))             { yyset_lineno(yyget_lineno()+1); }
-{WS}+					{ /* whitespace separates tokens */ }
+[ \t]+           { /* whitespace separates tokens */ }
+
 .					    { /* discard bad characters */ }
 
 %%
