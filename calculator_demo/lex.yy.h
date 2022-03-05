@@ -2,9 +2,9 @@
 #define yyHEADER_H 1
 #define yyIN_HEADER 1
 
-#line 6 "lex.yy.h"
+#line 6 "/Users/bytedance/repos/tsc/calculator_demo/lex.yy.h"
 
-#line 8 "lex.yy.h"
+#line 8 "/Users/bytedance/repos/tsc/calculator_demo/lex.yy.h"
 
 #define  YY_INT_ALIGNED short int
 
@@ -311,9 +311,9 @@ extern int yylex (void);
 #undef YY_DECL
 #endif
 
-#line 57 "tsc.l"
+#line 57 "/Users/bytedance/repos/tsc/calculator_demo/tsc.l"
 
 
-#line 318 "lex.yy.h"
+#line 318 "/Users/bytedance/repos/tsc/calculator_demo/lex.yy.h"
 #undef yyIN_HEADER
 #endif /* yyHEADER_H */

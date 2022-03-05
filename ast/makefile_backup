@@ -18,7 +18,7 @@ lex.yy.cc: tsc.l parser.h
 	bison -d tsc.y -o tsc.tab.cc
 
 tsc.tab.cc: tsc.y parser.h	
-	bison -d tsc.y -o tsc.tab.cc
+	
 
 
 clean:

@@ -18,12 +18,18 @@ int semantics_analysis(std::shared_ptr<ast_node> translation_unit) {
   std::vector<std::shared_ptr<ast_node>> external_declarations;
   std::shared_ptr<ast_node> node = translation_unit;
   semantics_analysis_context context;
+  context.current_symbol_table_node = std::make_shared<symbol_table_node>();
   while (node->node_type == NODE_TYPE_TRANSLATION_UNIT &&
          node->node_sub_type == NODE_TYPE_TRANSLATION_UNIT_SUBTYPE_TRANSLATION_UNIT_EXTERNAL_DECLARATION) {
     external_declarations.push_back(node->items[1]);
     node = node->items[0];
   }
+
   external_declarations.push_back(node->items[0]);
+  // 这里必须把 external_declarations 反过来.因为我们translation_unit文法定义是左递归的.
+  // 语法树根节点的 external_declaration 实际上是最后一个
+  external_declarations =
+      std::vector<std::shared_ptr<ast_node>>(external_declarations.rbegin(), external_declarations.rend());
   for (std::shared_ptr<ast_node> external_declaration : external_declarations) {
     // printf("external_declaration->node_sub_type %d\n", external_declaration->node_sub_type);
     switch (external_declaration->node_sub_type) {
@@ -65,7 +71,6 @@ int analyze_declaration(std::shared_ptr<ast_node> declaration, semantics_analysi
   std::shared_ptr<ast_node> declaration_specifiers = declaration->items[0];
 
   std::shared_ptr<tsc_type> type = std::make_shared<tsc_type>();
-
   semantics_analysis_result = analyze_declaration_specifiers(declaration_specifiers, context, type, is_global);
   if (semantics_analysis_result)
     return semantics_analysis_result;
@@ -73,7 +78,7 @@ int analyze_declaration(std::shared_ptr<ast_node> declaration, semantics_analysi
 }
 
 int analyze_function_definition(std::shared_ptr<ast_node> function_definition, semantics_analysis_context &context) {
-    return 0;
+  return 0;
 }
 
 /*
@@ -180,6 +185,28 @@ int analyze_declaration_specifiers(std::shared_ptr<ast_node> declaration_specifi
 
   //基本类型解析完毕.考虑struct union enum.注意符号表的处理.
 
+  switch (type->type_id) {
+  case RECORD_TYPE_ENUM: {
+
+    std::shared_ptr<ast_node> enum_specifier = type_specifiers[0]->items[0];
+    semantics_analysis_result = analyze_enum_specifier(enum_specifier, context, type, is_global);
+    if (semantics_analysis_result)
+      return semantics_analysis_result;
+    break;
+  }
+  case RECORD_TYPE_STRUCT_OR_UNION: {
+
+    std::shared_ptr<ast_node> struct_or_union_specifier = type_specifiers[0]->items[0];
+    semantics_analysis_result = analyze_struct_or_union_specifier(struct_or_union_specifier, context, type, is_global);
+    if (semantics_analysis_result)
+      return semantics_analysis_result;
+    break;
+  }
+
+  default:
+    break;
+  }
+
   return 0;
 }
 
@@ -196,6 +223,16 @@ int check_function_specifiers(std::vector<std::shared_ptr<ast_node>> &function_s
   }
   return 0;
 }
+/*
+storage_class_specifier
+	: TYPEDEF	
+	| EXTERN
+	| STATIC
+	| THREAD_LOCAL
+	| AUTO
+	| REGISTER
+	;
+*/
 
 int check_storage_class_specifiers(std::vector<std::shared_ptr<ast_node>> &storage_class_specifiers, bool is_global,
                                    std::shared_ptr<tsc_type> type) {
@@ -277,6 +314,16 @@ int check_storage_class_specifiers(std::vector<std::shared_ptr<ast_node>> &stora
   return 0;
 }
 
+/* 
+  type_qualifier
+	: CONST
+	| RESTRICT
+	| VOLATILE
+	| ATOMIC
+	;
+
+  */
+
 int check_type_qualifiers(std::vector<std::shared_ptr<ast_node>> &type_qualifiers, bool is_global,
                           std::shared_ptr<tsc_type> type) {
 
@@ -316,6 +363,27 @@ int check_type_qualifiers(std::vector<std::shared_ptr<ast_node>> &type_qualifier
 
   return 0;
 }
+
+/*
+type_specifier
+	: VOID
+	| CHAR
+	| SHORT
+	| INT
+	| LONG
+	| FLOAT
+	| DOUBLE
+	| SIGNED
+	| UNSIGNED
+	| BOOL
+	| COMPLEX
+	| IMAGINARY	  	
+	| atomic_type_specifier
+	| struct_or_union_specifier
+	| enum_specifier
+	| TYPEDEF_NAME		
+	;
+*/
 
 int check_primitive_type_specifiers(std::vector<std::shared_ptr<ast_node>> &type_specifiers, bool is_global,
                                     std::shared_ptr<tsc_type> type) {
@@ -397,7 +465,7 @@ int check_primitive_type_specifiers(std::vector<std::shared_ptr<ast_node>> &type
       type_id = RECORD_TYPE_ENUM;
       struct_union_enum_count++;
       break;
-
+    case NODE_TYPE_TYPE_SPECIFIER_SUBTYPE_TYPEDEF_NAME:
     default:
       break;
     }
@@ -659,4 +727,153 @@ int check_primitive_type_specifiers(std::vector<std::shared_ptr<ast_node>> &type
   }
   type->type_id = type_id;
   return 0;
+}
+
+/*
+enum_specifier
+	: ENUM '{' enumerator_list '}'
+	| ENUM '{' enumerator_list ',' '}'
+	| ENUM IDENTIFIER '{' enumerator_list '}'
+	| ENUM IDENTIFIER '{' enumerator_list ',' '}'
+	| ENUM IDENTIFIER
+	;
+*/
+
+int analyze_enum_specifier(std::shared_ptr<ast_node> enum_specifier, semantics_analysis_context &context,
+                           std::shared_ptr<tsc_type> type, bool is_global) {
+
+  std::shared_ptr<ast_node> identifier_node; // enum A{...}; identifier=A
+  std::shared_ptr<ast_node> enumerator_list;
+
+  // printf("node_sub_type %d size %lu\n", enum_specifier->node_sub_type, enum_specifier->items.size());
+  switch (enum_specifier->node_sub_type) {
+  case NODE_TYPE_ENUM_SPECIFIER_SUBTYPE_ENUM_LEFT_BRACE_ENUMATOR_LIST_RIGHT_BRACE:
+  case NODE_TYPE_ENUM_SPECIFIER_SUBTYPE_ENUM_LEFT_BRACE_ENUMATOR_LIST_COMMA_RIGHT_BRACE:
+    enumerator_list = enum_specifier->items[2];
+    type->is_complete = true;
+    break;
+
+  case NODE_TYPE_ENUM_SPECIFIER_SUBTYPE_ENUM_IDENTIFER_LEFT_BRACE_ENUMATOR_LIST_RIGHT_BRACE:
+  case NODE_TYPE_ENUM_SPECIFIER_SUBTYPE_ENUM_IDENTIFER_LEFT_BRACE_ENUMATOR_LIST_COMMA_RIGHT_BRACE:
+    identifier_node = enum_specifier->items[1];
+    enumerator_list = enum_specifier->items[3];
+    type->is_complete = true;
+    break;
+
+  case NODE_TYPE_ENUM_SPECIFIER_SUBTYPE_ENUM_IDENTIFER:
+    identifier_node = enum_specifier->items[1];
+    type->is_complete = false;
+    break;
+  }
+
+  std::shared_ptr<symbol_table_node> current_symbol_table_node = context.current_symbol_table_node;
+  std::string identifier;
+
+  if (identifier_node) {
+    identifier = *identifier_node->lexeme;
+    // 检查符号表中是否已经有同名的符号
+    for (std::map<std::string, std::shared_ptr<tsc_type>>::iterator it =
+             context.current_symbol_table_node->struct_union_enum_names.begin();
+         it != context.current_symbol_table_node->struct_union_enum_names.end(); it++) {
+      //可以多次声明但是只能定义1次
+      if (it->first == identifier && !check_type_compatibility(it->second, type)) {
+        printf("%s:%d error:\n\tincorrect tag '%s'\n", input_file_name.c_str(),
+               identifier_node->get_first_terminal_line_no(), identifier.c_str());
+        return 1;
+      }
+    }
+    //校验无误,加入tags
+    context.current_symbol_table_node->struct_union_enum_names[identifier] = type;
+  }
+
+  if (enumerator_list)
+    return analyze_enumerator_list(enumerator_list, context, type, is_global);
+  else
+    return 0;
+}
+
+int analyze_struct_or_union_specifier(std::shared_ptr<ast_node> struct_or_union_specifier,
+                                      semantics_analysis_context &context, std::shared_ptr<tsc_type> type,
+                                      bool is_global) {
+  return 0;
+}
+bool check_type_compatibility(std::shared_ptr<tsc_type> type1, std::shared_ptr<tsc_type> type2) {
+  if (type1->type_id != type2->type_id)
+    return false;
+  //至少1个是声明
+  if (!type1->is_complete || !type2->is_complete)
+    return true;
+  return false;
+}
+
+/*
+enumerator_list
+	: enumerator
+	| enumerator_list ',' enumerator
+	;
+
+enumerator	
+	: enumeration_constant '=' constant_expression
+	| enumeration_constant
+	;
+*/
+
+int analyze_enumerator_list(std::shared_ptr<ast_node> enumerator_list, semantics_analysis_context &context,
+                            std::shared_ptr<tsc_type> type, bool is_global) {
+
+  std::vector<std::shared_ptr<ast_node>> enumerators;
+  std::shared_ptr<ast_node> node = enumerator_list;
+
+  while (node->node_type == NODE_TYPE_ENUMERATOR_LIST &&
+         node->node_sub_type == NODE_TYPE_ENUMERATOR_LIST_SUBTYPE_ENUMERATOR_LIST_COMMA_ENUMERATOR) {
+    enumerators.push_back(node->items[2]);
+    node = node->items[0];
+  }
+  enumerators.push_back(node->items[0]);
+  enumerators = std::vector<std::shared_ptr<ast_node>>(enumerators.rbegin(), enumerators.rend());
+  int semantics_analysis_result = 0;
+  int next_value = 0;
+  // printf("enumerators size %lu\n", enumerators.size());
+  for (std::shared_ptr<ast_node> enumerator : enumerators) {
+    // printf("analyze_enumerator %d %d\n", enumerator->node_type, enumerator->node_sub_type);
+    std::pair<int, int> result = analyze_enumerator(enumerator, context, type, is_global, next_value);
+    semantics_analysis_result = result.first;
+    next_value = result.second;
+    if (semantics_analysis_result)
+      return semantics_analysis_result;
+  }
+  return 0;
+}
+
+std::pair<int, int> analyze_enumerator(std::shared_ptr<ast_node> enumerator, semantics_analysis_context &context,
+                                       std::shared_ptr<tsc_type> type, bool is_global, int next_value) {
+  int semantics_analysis_result = 0;
+  int enumration_constant_value = next_value;
+  // printf("enumerator size %lu\n", enumerator->items.size());
+  std::shared_ptr<ast_node> enumeration_constant = enumerator->items[0];
+  std::shared_ptr<ast_node> constant_expression;
+  //  printf("enumeration_constant size %lu\n", enumeration_constant->items.size());
+  std::string identifier = *enumeration_constant->items[0]->lexeme;
+  //  printf("enumeration_constant identifier %s\n", identifier.c_str());
+  // 检查符号表中是否已经有同名的符号
+  for (std::map<std::string, std::shared_ptr<tsc_type>>::iterator it =
+           context.current_symbol_table_node->identifier_and_types.begin();
+       it != context.current_symbol_table_node->identifier_and_types.end(); it++) {
+    if (it->first == identifier) {
+      printf("%s:%d error:\n\rredeclared '%s'\n", input_file_name.c_str(),
+             enumeration_constant->get_first_terminal_line_no(), identifier.c_str());
+      return std::make_pair<int, int>(1, 0);
+    }
+  }
+  //校验无误,加入tags
+  context.current_symbol_table_node->identifier_and_types[identifier] = type;
+  switch (enumerator->node_sub_type) {
+  case NODE_TYPE_ENUMERATOR_SUBTYPE_ENUMERATION_CONSTANT_ASSIGN_CONSTANT_EXPRESSION:
+    constant_expression = enumerator->items[2];
+    break;
+  case NODE_TYPE_ENUMERATOR_SUBTYPE_ENUMERATION_CONSTANT:
+    break;
+  }
+
+  return std::make_pair<int, int>(std::move(semantics_analysis_result), std::move(enumration_constant_value));
 }

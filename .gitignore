@@ -2,6 +2,7 @@
 **/*.out
 .vscode/*
 .idea/*
+cmake-build-debug/*
 calculator_demo/a.out.dSYM/*
 ast/a.out.dSYM/*
 ast/tsc.tab.cc

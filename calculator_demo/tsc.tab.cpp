@@ -86,7 +86,7 @@
 
 
 /* Copy the first part of user declarations.  */
-#line 1 "tsc.y"
+#line 1 "/Users/bytedance/repos/tsc/calculator_demo/tsc.y"
 
 #include <stdio.h>
 #include "a.h"
@@ -131,7 +131,7 @@ typedef int YYSTYPE;
 
 
 /* Line 216 of yacc.c.  */
-#line 135 "tsc.tab.cpp"
+#line 135 "/Users/bytedance/repos/tsc/calculator_demo/tsc.tab.cpp"
 
 #ifdef short
 # undef short
@@ -1319,7 +1319,7 @@ yyreduce:
   switch (yyn)
     {
         case 2:
-#line 24 "tsc.y"
+#line 24 "/Users/bytedance/repos/tsc/calculator_demo/tsc.y"
     {
 
         expression_node node;
@@ -1337,7 +1337,7 @@ yyreduce:
     break;
 
   case 3:
-#line 38 "tsc.y"
+#line 38 "/Users/bytedance/repos/tsc/calculator_demo/tsc.y"
     {
         expression_node node;
         node.node_type=NODE_TYPE_EXPRESSION;
@@ -1356,7 +1356,7 @@ yyreduce:
     break;
 
   case 4:
-#line 57 "tsc.y"
+#line 57 "/Users/bytedance/repos/tsc/calculator_demo/tsc.y"
     {
         expression_node node;
         node.node_type=NODE_TYPE_ADDITIVE_EXPRESSION;
@@ -1372,7 +1372,7 @@ yyreduce:
     break;
 
   case 5:
-#line 70 "tsc.y"
+#line 70 "/Users/bytedance/repos/tsc/calculator_demo/tsc.y"
     {
         expression_node node;
         node.node_type=NODE_TYPE_ADDITIVE_EXPRESSION;
@@ -1390,7 +1390,7 @@ yyreduce:
     break;
 
   case 6:
-#line 88 "tsc.y"
+#line 88 "/Users/bytedance/repos/tsc/calculator_demo/tsc.y"
     {
         expression_node node;
         node.node_type=NODE_TYPE_MULTIPLICATIVE_EXPRESSION;
@@ -1404,7 +1404,7 @@ yyreduce:
     break;
 
   case 7:
-#line 99 "tsc.y"
+#line 99 "/Users/bytedance/repos/tsc/calculator_demo/tsc.y"
     {
         expression_node node;
         node.node_type=NODE_TYPE_MULTIPLICATIVE_EXPRESSION;
@@ -1417,7 +1417,7 @@ yyreduce:
     break;
 
   case 8:
-#line 109 "tsc.y"
+#line 109 "/Users/bytedance/repos/tsc/calculator_demo/tsc.y"
     {
         expression_node node;
         node.node_type=NODE_TYPE_MULTIPLICATIVE_EXPRESSION;
@@ -1436,7 +1436,7 @@ yyreduce:
 
 
 /* Line 1267 of yacc.c.  */
-#line 1440 "tsc.tab.cpp"
+#line 1440 "/Users/bytedance/repos/tsc/calculator_demo/tsc.tab.cpp"
       default: break;
     }
   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);
@@ -1650,7 +1650,7 @@ yyreturn:
 }
 
 
-#line 126 "tsc.y"
+#line 126 "/Users/bytedance/repos/tsc/calculator_demo/tsc.y"
 
 
 

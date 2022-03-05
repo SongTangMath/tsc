@@ -1,6 +1,6 @@
-#line 2 "lex.yy.cpp"
+#line 2 "/Users/bytedance/repos/tsc/calculator_demo/lex.yy.cpp"
 
-#line 4 "lex.yy.cpp"
+#line 4 "/Users/bytedance/repos/tsc/calculator_demo/lex.yy.cpp"
 
 #define  YY_INT_ALIGNED short int
 
@@ -550,8 +550,8 @@ int yy_flex_debug = 0;
 #define YY_MORE_ADJ 0
 #define YY_RESTORE_YY_MORE_OFFSET
 char *yytext;
-#line 1 "tsc.l"
-#line 19 "tsc.l"
+#line 1 "/Users/bytedance/repos/tsc/calculator_demo/tsc.l"
+#line 19 "/Users/bytedance/repos/tsc/calculator_demo/tsc.l"
 #include "a.h"
 #include "tsc.tab.hpp"
 #include "stdio.h"
@@ -564,7 +564,7 @@ extern "C" int yywrap(void)        /* called at end of input */
 
    
     
-#line 568 "lex.yy.cpp"
+#line 568 "/Users/bytedance/repos/tsc/calculator_demo/lex.yy.cpp"
 
 #define INITIAL 0
 
@@ -746,10 +746,10 @@ YY_DECL
 	register char *yy_cp, *yy_bp;
 	register int yy_act;
     
-#line 33 "tsc.l"
+#line 33 "/Users/bytedance/repos/tsc/calculator_demo/tsc.l"
 
 
-#line 753 "lex.yy.cpp"
+#line 753 "/Users/bytedance/repos/tsc/calculator_demo/lex.yy.cpp"
 
 	if ( !(yy_init) )
 		{
@@ -834,91 +834,91 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 35 "tsc.l"
+#line 35 "/Users/bytedance/repos/tsc/calculator_demo/tsc.l"
 { yylval.lexeme=std::shared_ptr<std::string>(new std::string(yytext)); return I_CONSTANT; }
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
-#line 36 "tsc.l"
+#line 36 "/Users/bytedance/repos/tsc/calculator_demo/tsc.l"
 { yylval.lexeme=std::shared_ptr<std::string>(new std::string(yytext)); return I_CONSTANT; }
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
-#line 37 "tsc.l"
+#line 37 "/Users/bytedance/repos/tsc/calculator_demo/tsc.l"
 { yylval.lexeme=std::shared_ptr<std::string>(new std::string(yytext)); return I_CONSTANT; }
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 38 "tsc.l"
+#line 38 "/Users/bytedance/repos/tsc/calculator_demo/tsc.l"
 { yylval.lexeme=std::shared_ptr<std::string>(new std::string(yytext)); return I_CONSTANT; }
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 40 "tsc.l"
+#line 40 "/Users/bytedance/repos/tsc/calculator_demo/tsc.l"
 { yylval.lexeme=std::shared_ptr<std::string>(new std::string(yytext)); return F_CONSTANT; }
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 41 "tsc.l"
+#line 41 "/Users/bytedance/repos/tsc/calculator_demo/tsc.l"
 { yylval.lexeme=std::shared_ptr<std::string>(new std::string(yytext)); return F_CONSTANT; }
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 42 "tsc.l"
+#line 42 "/Users/bytedance/repos/tsc/calculator_demo/tsc.l"
 { yylval.lexeme=std::shared_ptr<std::string>(new std::string(yytext)); return F_CONSTANT; }
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 43 "tsc.l"
+#line 43 "/Users/bytedance/repos/tsc/calculator_demo/tsc.l"
 { yylval.lexeme=std::shared_ptr<std::string>(new std::string(yytext)); return F_CONSTANT; }
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 44 "tsc.l"
+#line 44 "/Users/bytedance/repos/tsc/calculator_demo/tsc.l"
 { yylval.lexeme=std::shared_ptr<std::string>(new std::string(yytext)); return F_CONSTANT; }
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 45 "tsc.l"
+#line 45 "/Users/bytedance/repos/tsc/calculator_demo/tsc.l"
 { yylval.lexeme=std::shared_ptr<std::string>(new std::string(yytext)); return F_CONSTANT; }
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 47 "tsc.l"
+#line 47 "/Users/bytedance/repos/tsc/calculator_demo/tsc.l"
 { yylval.lexeme=std::shared_ptr<std::string>(new std::string(yytext)); return LEFT_PARENTHESIS; }
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 48 "tsc.l"
+#line 48 "/Users/bytedance/repos/tsc/calculator_demo/tsc.l"
 { yylval.lexeme=std::shared_ptr<std::string>(new std::string(yytext)); return RIGHT_PARENTHESIS; }
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 50 "tsc.l"
+#line 50 "/Users/bytedance/repos/tsc/calculator_demo/tsc.l"
 { yylval.lexeme=std::shared_ptr<std::string>(new std::string(yytext)); return Add_minus; }
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
-#line 51 "tsc.l"
+#line 51 "/Users/bytedance/repos/tsc/calculator_demo/tsc.l"
 { yylval.lexeme=std::shared_ptr<std::string>(new std::string(yytext)); return Multiply_divide_mod; }
 	YY_BREAK
 case 15:
 /* rule 15 can match eol */
 YY_RULE_SETUP
-#line 54 "tsc.l"
+#line 54 "/Users/bytedance/repos/tsc/calculator_demo/tsc.l"
 { /* whitespace separates tokens */ printf("whitespace length %lu\n",strlen(yytext));}
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 55 "tsc.l"
+#line 55 "/Users/bytedance/repos/tsc/calculator_demo/tsc.l"
 { /* discard bad characters */ }
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
-#line 57 "tsc.l"
+#line 57 "/Users/bytedance/repos/tsc/calculator_demo/tsc.l"
 ECHO;
 	YY_BREAK
-#line 922 "lex.yy.cpp"
+#line 922 "/Users/bytedance/repos/tsc/calculator_demo/lex.yy.cpp"
 case YY_STATE_EOF(INITIAL):
 	yyterminate();
 
@@ -1915,7 +1915,7 @@ void yyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 57 "tsc.l"
+#line 57 "/Users/bytedance/repos/tsc/calculator_demo/tsc.l"
 
 
 

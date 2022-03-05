@@ -216,8 +216,8 @@ eof
   The state stack中的整数用于保存parse中的状态,对我们基本没用
   但是The semantic value stack中的值却可以利用
 
-## C11关键字
-以下为C11关键字本次不支持
+## C99/C11关键字
+以下为C99/C11关键字本次不支持
 
 "_Alignas"                              
 "_Alignof"                              
@@ -266,3 +266,22 @@ bison -d tsc.y
 原因是它不知道结合性,可以忽略
 lex.yy.cpp中的input()要改成yyinput()
 tsc.tab.cpp中的void yyerror(const char *s);需要前置声明否则找不到符号
+
+
+## llvm
+
+mac上可以通过 brew install llvm 安装
+
+假设test.cpp为
+
+#include \<stdio.h\>
+int main() {
+  printf("hello world\n");
+  return 0;
+}
+
+clang -emit-llvm test.cpp -S -o test.ll
+可以用lli命令直接编译运行ll文件
+lli test.ll
+或者用llc将ll编译为汇编test.s
+llc test.ll

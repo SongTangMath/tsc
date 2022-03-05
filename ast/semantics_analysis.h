@@ -29,17 +29,19 @@ struct tsc_type {
   bool is_extern;
   bool is_static;
   bool is_register;
-
+  //for functions
   bool is_inline;
   bool is_noreturn;
+  //for struct union enum
+  bool is_complete; // struct A; -> incomplete
 
   int type_id;
 };
 
 struct symbol_table_node {
   std::shared_ptr<symbol_table_node> parent;
-  std::map<std::string, tsc_type> identifier_types;
-  std::map<std::string, tsc_type> struct_or_union_names;
+  std::map<std::string, std::shared_ptr<tsc_type>> identifier_and_types;
+  std::map<std::string, std::shared_ptr<tsc_type>> struct_union_enum_names; //通常也称为tags
 };
 
 struct semantics_analysis_context {
@@ -62,3 +64,19 @@ int check_storage_class_specifiers(std::vector<std::shared_ptr<ast_node>> &stora
 
 int check_function_specifiers(std::vector<std::shared_ptr<ast_node>> &function_specifiers, bool is_global,
                               std::shared_ptr<tsc_type> type);
+
+int analyze_enum_specifier(std::shared_ptr<ast_node> enum_specifier, semantics_analysis_context &context,
+                           std::shared_ptr<tsc_type> type, bool is_global);
+int analyze_struct_or_union_specifier(std::shared_ptr<ast_node> struct_or_union_specifier,
+                                      semantics_analysis_context &context, std::shared_ptr<tsc_type> type,
+                                      bool is_global);
+
+//  如果有2个struct_union_enum同名,它们是否一致.
+//  例如type1是声明struct A; type2是定义struct A{...};则一致.如果type2是个union那么不一致
+bool check_type_compatibility(std::shared_ptr<tsc_type> type1, std::shared_ptr<tsc_type> type2);
+
+int analyze_enumerator_list(std::shared_ptr<ast_node> enumerator_list, semantics_analysis_context &context,
+                            std::shared_ptr<tsc_type> type, bool is_global);
+//first=semantics_analysis_result second=  enumration_constant_value
+std::pair<int, int> analyze_enumerator(std::shared_ptr<ast_node> enumerator, semantics_analysis_context &context,
+                                       std::shared_ptr<tsc_type> type, bool is_global, int next_value);
