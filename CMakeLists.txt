@@ -1,7 +1,7 @@
 cmake_minimum_required( VERSION 3.15 )
-project ( calculator_demo )
+project ( tsc )
 
-set(tsc_test_sources ast/main.cc ast/lex.yy.cc ast/tsc.tab.cc ast/parser.cc ast/semantics_analysis.cc)
+set(tsc_test_sources ast/main.cc ast/parser.cc ast/semantics_analysis.cc ast/lex.yy.cc ast/tsc.tab.cc)
 set(CMAKE_CXX_STANDARD 11)
 
 FIND_PACKAGE(FLEX REQUIRED)

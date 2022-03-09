@@ -114,9 +114,10 @@ constant
     }	
 	;
 
-enumeration_constant		/* before it has been defined as such */
+enumeration_constant
 	: IDENTIFIER
 	{
+	/* before it has been defined as such */
         ast_node node;
         node.node_type = NODE_TYPE_ENUMERATION_CONSTANT;
         node.node_sub_type = NODE_TYPE_ENUMERATION_CONSTANT_SUBTYPE_IDENTIFIER;
@@ -674,7 +675,7 @@ and_expression
 	{
         ast_node node;
         node.node_type = NODE_TYPE_AND_EXPRESSION;
-        node.node_sub_type = NODE_TYPE_AND_EXPRESSION_SUBTYPE_AND_EXPRESSION_BITAND_RELATIONAL_EXPRESSION;
+        node.node_sub_type = NODE_TYPE_AND_EXPRESSION_SUBTYPE_AND_EXPRESSION_BITAND_EQUALITY_EXPRESSION;
         node.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //and_expression
 		node.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //BITAND
 		node.items.push_back(std::shared_ptr<ast_node>(new ast_node($3))); //equality_expression
@@ -1551,9 +1552,10 @@ enumerator_list
     }
 	;
 
-enumerator	/* identifiers must be flagged as ENUMERATION_CONSTANT */
+enumerator
 	: enumeration_constant ASSIGN constant_expression
 	{
+	/* identifiers must be flagged as ENUMERATION_CONSTANT */
         ast_node node;
         node.node_type = NODE_TYPE_ENUMERATOR;
         node.node_sub_type = NODE_TYPE_ENUMERATOR_SUBTYPE_ENUMERATION_CONSTANT_ASSIGN_CONSTANT_EXPRESSION;

@@ -223,6 +223,7 @@ int check_function_specifiers(std::vector<std::shared_ptr<ast_node>> &function_s
   }
   return 0;
 }
+
 /*
 storage_class_specifier
 	: TYPEDEF	
@@ -327,16 +328,16 @@ int check_storage_class_specifiers(std::vector<std::shared_ptr<ast_node>> &stora
 int check_type_qualifiers(std::vector<std::shared_ptr<ast_node>> &type_qualifiers, bool is_global,
                           std::shared_ptr<tsc_type> type) {
 
-  /* 
-    type_qualifier 
-    restrict在C99引入用于表示指针所指向的内存只能被这个指针访问到,编译器可以据此做一些优化
-    A register variable is a type of local variable.
-    It is a hint to store the value in a register for faster access.
-    A register variable can not be global or static.
-    It can be defined only in a block.
+  /*
+        type_qualifier
+        restrict在C99引入用于表示指针所指向的内存只能被这个指针访问到,编译器可以据此做一些优化
+        A register variable is a type of local variable.
+        It is a hint to store the value in a register for faster access.
+        A register variable can not be global or static.
+        It can be defined only in a block.
 
-    const const long ->OK
-    */
+        const const long ->OK
+        */
 
   for (std::shared_ptr<ast_node> type_qualifier : type_qualifiers) {
     switch (type_qualifier->node_sub_type) {
@@ -388,14 +389,14 @@ type_specifier
 int check_primitive_type_specifiers(std::vector<std::shared_ptr<ast_node>> &type_specifiers, bool is_global,
                                     std::shared_ptr<tsc_type> type) {
   /*
-    double long ->OK
-    long short ->error
-    short short ->error
-    long long long ->error
-    unsigned float ->error
-    type_specifier规则 
-    short与long不能共存.short至多1个long至多2个
-    */
+        double long ->OK
+        long short ->error
+        short short ->error
+        long long long ->error
+        unsigned float ->error
+        type_specifier规则
+        short与long不能共存.short至多1个long至多2个
+        */
 
   int long_count = 0;
   int short_count = 0;
@@ -745,7 +746,6 @@ int analyze_enum_specifier(std::shared_ptr<ast_node> enum_specifier, semantics_a
   std::shared_ptr<ast_node> identifier_node; // enum A{...}; identifier=A
   std::shared_ptr<ast_node> enumerator_list;
 
-  // printf("node_sub_type %d size %lu\n", enum_specifier->node_sub_type, enum_specifier->items.size());
   switch (enum_specifier->node_sub_type) {
   case NODE_TYPE_ENUM_SPECIFIER_SUBTYPE_ENUM_LEFT_BRACE_ENUMATOR_LIST_RIGHT_BRACE:
   case NODE_TYPE_ENUM_SPECIFIER_SUBTYPE_ENUM_LEFT_BRACE_ENUMATOR_LIST_COMMA_RIGHT_BRACE:
@@ -797,6 +797,7 @@ int analyze_struct_or_union_specifier(std::shared_ptr<ast_node> struct_or_union_
                                       bool is_global) {
   return 0;
 }
+
 bool check_type_compatibility(std::shared_ptr<tsc_type> type1, std::shared_ptr<tsc_type> type2) {
   if (type1->type_id != type2->type_id)
     return false;
@@ -833,9 +834,7 @@ int analyze_enumerator_list(std::shared_ptr<ast_node> enumerator_list, semantics
   enumerators = std::vector<std::shared_ptr<ast_node>>(enumerators.rbegin(), enumerators.rend());
   int semantics_analysis_result = 0;
   int next_value = 0;
-  // printf("enumerators size %lu\n", enumerators.size());
   for (std::shared_ptr<ast_node> enumerator : enumerators) {
-    // printf("analyze_enumerator %d %d\n", enumerator->node_type, enumerator->node_sub_type);
     std::pair<int, int> result = analyze_enumerator(enumerator, context, type, is_global, next_value);
     semantics_analysis_result = result.first;
     next_value = result.second;
@@ -848,13 +847,10 @@ int analyze_enumerator_list(std::shared_ptr<ast_node> enumerator_list, semantics
 std::pair<int, int> analyze_enumerator(std::shared_ptr<ast_node> enumerator, semantics_analysis_context &context,
                                        std::shared_ptr<tsc_type> type, bool is_global, int next_value) {
   int semantics_analysis_result = 0;
-  int enumration_constant_value = next_value;
-  // printf("enumerator size %lu\n", enumerator->items.size());
+  int enumeration_constant_value = next_value;
   std::shared_ptr<ast_node> enumeration_constant = enumerator->items[0];
   std::shared_ptr<ast_node> constant_expression;
-  //  printf("enumeration_constant size %lu\n", enumeration_constant->items.size());
   std::string identifier = *enumeration_constant->items[0]->lexeme;
-  //  printf("enumeration_constant identifier %s\n", identifier.c_str());
   // 检查符号表中是否已经有同名的符号
   for (std::map<std::string, std::shared_ptr<tsc_type>>::iterator it =
            context.current_symbol_table_node->identifier_and_types.begin();
@@ -870,10 +866,424 @@ std::pair<int, int> analyze_enumerator(std::shared_ptr<ast_node> enumerator, sem
   switch (enumerator->node_sub_type) {
   case NODE_TYPE_ENUMERATOR_SUBTYPE_ENUMERATION_CONSTANT_ASSIGN_CONSTANT_EXPRESSION:
     constant_expression = enumerator->items[2];
+    semantics_analysis_result = analyze_constant_expression(constant_expression, context);
     break;
   case NODE_TYPE_ENUMERATOR_SUBTYPE_ENUMERATION_CONSTANT:
     break;
   }
 
-  return std::make_pair<int, int>(std::move(semantics_analysis_result), std::move(enumration_constant_value));
+  return std::make_pair<int, int>(std::move(semantics_analysis_result), std::move(enumeration_constant_value));
+}
+
+int analyze_constant_expression(std::shared_ptr<ast_node> constant_expression, semantics_analysis_context &context) {
+  std::shared_ptr<ast_node> conditional_expression = constant_expression->items[0];
+  int semantics_analysis_result = analyze_conditional_expression(conditional_expression, context);
+
+  if (semantics_analysis_result)
+    return semantics_analysis_result;
+
+  // check is constant expression
+
+  return 0;
+}
+
+/*
+conditional_expression
+	: logical_or_expression
+	| logical_or_expression '?' expression ':' conditional_expression
+	;
+ */
+int analyze_conditional_expression(std::shared_ptr<ast_node> conditional_expression,
+                                   semantics_analysis_context &context) {
+  int semantics_analysis_result = 0;
+  std::shared_ptr<ast_node> logical_or_expression = conditional_expression->items[0];
+  std::shared_ptr<ast_node> expression;
+  std::shared_ptr<ast_node> next_conditional_expression;
+
+  switch (conditional_expression->node_sub_type) {
+  case NODE_TYPE_CONDITIONAL_EXPRESSION_SUBTYPE_LOGICAL_OR_EXPRESSION:
+    semantics_analysis_result = analyze_logical_or_expression(logical_or_expression, context);
+    break;
+  case NODE_TYPE_ASSIGNMENT_EXPRESSION_SUBTYPE_UNARY_EXPRESSION_ASSIGNMENT_OPERATOR_ASSIGNMENT_EXPRESSION:
+    expression = conditional_expression->items[2];
+    next_conditional_expression = conditional_expression->items[4];
+    semantics_analysis_result = analyze_expression(expression, context);
+
+    if (semantics_analysis_result)
+      return semantics_analysis_result;
+    semantics_analysis_result = analyze_conditional_expression(next_conditional_expression, context);
+
+    if (semantics_analysis_result)
+      return semantics_analysis_result;
+    break;
+  }
+
+  return semantics_analysis_result;
+}
+
+/*
+logical_or_expression
+	: logical_and_expression
+	| logical_or_expression OR_OP logical_and_expression
+	;
+
+ */
+int analyze_logical_or_expression(std::shared_ptr<ast_node> logical_or_expression,
+                                  semantics_analysis_context &context) {
+  int semantics_analysis_result = 0;
+
+  std::shared_ptr<ast_node> logical_and_expression;
+  std::shared_ptr<ast_node> next_logical_or_expression;
+
+  switch (logical_or_expression->node_sub_type) {
+  case NODE_TYPE_LOGICAL_OR_EXPRESSION_SUBTYPE_LOGICAL_AND_EXPRESSION:
+    logical_and_expression = logical_or_expression->items[0];
+
+    break;
+  case NODE_TYPE_LOGICAL_OR_EXPRESSION_SUBTYPE_LOGICAL_OR_EXPRESSION_OR_OP_LOGICAL_AND_EXPRESSION:
+
+    next_logical_or_expression = logical_or_expression->items[0];
+    logical_and_expression = logical_or_expression->items[2];
+
+    break;
+  }
+
+  semantics_analysis_result = analyze_logical_and_expression(logical_and_expression, context);
+  if (semantics_analysis_result)
+    return semantics_analysis_result;
+
+  if (next_logical_or_expression)
+    semantics_analysis_result = analyze_logical_or_expression(next_logical_or_expression, context);
+
+  return semantics_analysis_result;
+}
+
+/*
+logical_and_expression
+	: inclusive_or_expression
+	| logical_and_expression AND_OP inclusive_or_expression
+	;
+ */
+int analyze_logical_and_expression(std::shared_ptr<ast_node> logical_and_expression,
+                                   semantics_analysis_context &context) {
+  int semantics_analysis_result = 0;
+
+  std::shared_ptr<ast_node> inclusive_or_expression;
+  std::shared_ptr<ast_node> next_logical_and_expression;
+
+  switch (logical_and_expression->node_sub_type) {
+  case NODE_TYPE_LOGICAL_AND_EXPRESSION_SUBTYPE_INCLUSIVE_OR_EXPRESSION:
+    inclusive_or_expression = logical_and_expression->items[0];
+    break;
+  case NODE_TYPE_LOGICAL_AND_EXPRESSION_SUBTYPE_LOGICAL_AND_EXPRESSION_AND_OP_INCLUSIVE_OR_EXPRESSION:
+    next_logical_and_expression = logical_and_expression->items[0];
+    inclusive_or_expression = logical_and_expression->items[2];
+
+    break;
+  }
+  semantics_analysis_result = analyze_inclusive_or_expression(inclusive_or_expression, context);
+  if (semantics_analysis_result)
+    return semantics_analysis_result;
+  if (next_logical_and_expression)
+    semantics_analysis_result = analyze_logical_and_expression(next_logical_and_expression, context);
+
+  return semantics_analysis_result;
+}
+
+/*
+inclusive_or_expression
+	: exclusive_or_expression
+	| inclusive_or_expression '|' exclusive_or_expression
+	;
+ */
+int analyze_inclusive_or_expression(std::shared_ptr<ast_node> inclusive_or_expression,
+                                    semantics_analysis_context &context) {
+  int semantics_analysis_result = 0;
+
+  std::shared_ptr<ast_node> exclusive_or_expression = inclusive_or_expression->items[0];
+  std::shared_ptr<ast_node> next_inclusive_or_expression;
+
+  switch (inclusive_or_expression->node_sub_type) {
+  case NODE_TYPE_INCLUSIVE_OR_EXPRESSION_SUBTYPE_EXCLUSIVE_OR_EXPRESSION:
+    exclusive_or_expression = inclusive_or_expression->items[0];
+    break;
+  case NODE_TYPE_INCLUSIVE_OR_EXPRESSION_SUBTYPE_INCLUSIVE_OR_EXPRESSION_BITOR_EXCLUSIVE_OR_EXPRESSION:
+    exclusive_or_expression = inclusive_or_expression->items[2];
+    next_inclusive_or_expression = inclusive_or_expression->items[0];
+
+    break;
+  }
+
+  semantics_analysis_result = analyze_exclusive_or_expression(exclusive_or_expression, context);
+  if (semantics_analysis_result)
+    return semantics_analysis_result;
+  if (next_inclusive_or_expression)
+    semantics_analysis_result = analyze_inclusive_or_expression(next_inclusive_or_expression, context);
+
+  return semantics_analysis_result;
+}
+
+/*
+exclusive_or_expression
+	: and_expression
+	| exclusive_or_expression '^' and_expression
+	;
+ */
+int analyze_exclusive_or_expression(std::shared_ptr<ast_node> exclusive_or_expression,
+                                    semantics_analysis_context &context) {
+  int semantics_analysis_result = 0;
+
+  std::shared_ptr<ast_node> and_expression = exclusive_or_expression->items[0];
+  std::shared_ptr<ast_node> next_exclusive_or_expression;
+
+  switch (exclusive_or_expression->node_sub_type) {
+  case NODE_TYPE_EXCLUSIVE_OR_EXPRESSION_SUBTYPE_AND_EXPRESSION:
+    and_expression = exclusive_or_expression->items[0];
+    break;
+  case NODE_TYPE_EXCLUSIVE_OR_EXPRESSION_SUBTYPE_EXCLUSIVE_OR_EXPRESSION_BITXOR_AND_EXPRESSION:
+    and_expression = exclusive_or_expression->items[2];
+    next_exclusive_or_expression = exclusive_or_expression->items[0];
+    break;
+  }
+
+  semantics_analysis_result = analyze_and_expression(and_expression, context);
+  if (semantics_analysis_result)
+    return semantics_analysis_result;
+
+  if (next_exclusive_or_expression)
+    semantics_analysis_result = analyze_exclusive_or_expression(next_exclusive_or_expression, context);
+
+  return semantics_analysis_result;
+}
+
+/*
+and_expression
+	: equality_expression
+	| and_expression '&' equality_expression
+	;
+ */
+int analyze_and_expression(std::shared_ptr<ast_node> and_expression, semantics_analysis_context &context) {
+  int semantics_analysis_result = 0;
+
+  std::shared_ptr<ast_node> equality_expression;
+  std::shared_ptr<ast_node> next_and_expression;
+
+  switch (and_expression->node_sub_type) {
+  case NODE_TYPE_AND_EXPRESSION_SUBTYPE_EQUALITY_EXPRESSION:
+    equality_expression = and_expression->items[0];
+    break;
+  case NODE_TYPE_AND_EXPRESSION_SUBTYPE_AND_EXPRESSION_BITAND_EQUALITY_EXPRESSION:
+    equality_expression = and_expression->items[2];
+    next_and_expression = and_expression->items[0];
+
+    break;
+  }
+  semantics_analysis_result = analyze_equality_expression(equality_expression, context);
+  if (semantics_analysis_result)
+    return semantics_analysis_result;
+  if (next_and_expression)
+    semantics_analysis_result = analyze_and_expression(next_and_expression, context);
+
+  return semantics_analysis_result;
+}
+
+/*
+equality_expression
+	: relational_expression
+	| equality_expression EQ_OP relational_expression
+	| equality_expression NE_OP relational_expression
+	;
+ */
+int analyze_equality_expression(std::shared_ptr<ast_node> equality_expression, semantics_analysis_context &context) {
+  int semantics_analysis_result = 0;
+
+  std::shared_ptr<ast_node> relational_expression;
+  std::shared_ptr<ast_node> next_equality_expression;
+
+  switch (equality_expression->node_sub_type) {
+  case NODE_TYPE_EQUALITY_EXPRESSION_SUBTYPE_RELATIONAL_EXPRESSION:
+    relational_expression = equality_expression->items[0];
+    break;
+  case NODE_TYPE_EQUALITY_EXPRESSION_SUBTYPE_EQUALITY_EXPRESSION_EQ_OP_RELATIONAL_EXPRESSION:
+  case NODE_TYPE_EQUALITY_EXPRESSION_SUBTYPE_EQUALITY_EXPRESSION_NE_OP_RELATIONAL_EXPRESSION:
+    relational_expression = equality_expression->items[2];
+    next_equality_expression = equality_expression->items[0];
+    break;
+  }
+
+  semantics_analysis_result = analyze_relational_expression(relational_expression, context);
+  if (semantics_analysis_result)
+    return semantics_analysis_result;
+  if (next_equality_expression)
+    semantics_analysis_result = analyze_equality_expression(next_equality_expression, context);
+
+  return semantics_analysis_result;
+}
+
+/*
+relational_expression
+	: shift_expression
+	| relational_expression '<' shift_expression
+	| relational_expression '>' shift_expression
+	| relational_expression LE_OP shift_expression
+	| relational_expression GE_OP shift_expression
+	;
+ */
+int analyze_relational_expression(std::shared_ptr<ast_node> relational_expression,
+                                  semantics_analysis_context &context) {
+  int semantics_analysis_result = 0;
+
+  std::shared_ptr<ast_node> shift_expression = relational_expression->items[0];
+  std::shared_ptr<ast_node> next_relational_expression;
+
+  switch (relational_expression->node_sub_type) {
+  case NODE_TYPE_RELATIONAL_EXPRESSION_SUBTYPE_SHIFT_EXPRESSION:
+    shift_expression = relational_expression->items[0];
+    break;
+  case NODE_TYPE_RELATIONAL_EXPRESSION_SUBTYPE_RELATIONAL_EXPRESSION_LESS_THAN_SHIFT_EXPRESSION:
+  case NODE_TYPE_RELATIONAL_EXPRESSION_SUBTYPE_RELATIONAL_EXPRESSION_GREATER_THAN_SHIFT_EXPRESSION:
+  case NODE_TYPE_RELATIONAL_EXPRESSION_SUBTYPE_RELATIONAL_EXPRESSION_LE_OP_SHIFT_EXPRESSION:
+  case NODE_TYPE_RELATIONAL_EXPRESSION_SUBTYPE_RELATIONAL_EXPRESSION_GE_OP_SHIFT_EXPRESSION:
+    shift_expression = relational_expression->items[2];
+    next_relational_expression = relational_expression->items[0];
+
+    break;
+  }
+  semantics_analysis_result = analyze_shift_expression(shift_expression, context);
+  if (semantics_analysis_result)
+    return semantics_analysis_result;
+
+  if (next_relational_expression)
+    semantics_analysis_result = analyze_relational_expression(next_relational_expression, context);
+
+  return semantics_analysis_result;
+}
+
+/*
+shift_expression
+	: additive_expression
+	| shift_expression LEFT_OP additive_expression
+	| shift_expression RIGHT_OP additive_expression
+	;
+ */
+int analyze_shift_expression(std::shared_ptr<ast_node> shift_expression, semantics_analysis_context &context) {
+  int semantics_analysis_result = 0;
+
+  std::shared_ptr<ast_node> additive_expression;
+  std::shared_ptr<ast_node> next_shift_expression;
+
+  switch (shift_expression->node_sub_type) {
+  case NODE_TYPE_SHIFT_EXPRESSION_SUBTYPE_ADDITIVE_EXPRESSION:
+    additive_expression = shift_expression->items[0];
+    break;
+  case NODE_TYPE_SHIFT_EXPRESSION_SUBTYPE_SHIFT_EXPRESSION_LEFT_SHIFT_ADDITIVE_EXPRESSION:
+  case NODE_TYPE_SHIFT_EXPRESSION_SUBTYPE_SHIFT_EXPRESSION_RIGHT_SHIFT_ADDITIVE_EXPRESSION:
+    additive_expression = shift_expression->items[2];
+    next_shift_expression = shift_expression->items[0];
+
+    break;
+  }
+  semantics_analysis_result = analyze_additive_expression(additive_expression, context);
+  if (semantics_analysis_result)
+    return semantics_analysis_result;
+  if (next_shift_expression)
+    semantics_analysis_result = analyze_shift_expression(next_shift_expression, context);
+
+  return semantics_analysis_result;
+}
+
+/*
+additive_expression
+	: multiplicative_expression
+	| additive_expression '+' multiplicative_expression
+	| additive_expression '-' multiplicative_expression
+	;
+ */
+int analyze_additive_expression(std::shared_ptr<ast_node> additive_expression, semantics_analysis_context &context) {
+  int semantics_analysis_result = 0;
+  return semantics_analysis_result;
+}
+
+/*
+multiplicative_expression
+	: cast_expression
+	| multiplicative_expression '*' cast_expression
+	| multiplicative_expression '/' cast_expression
+	| multiplicative_expression '%' cast_expression
+	;
+ */
+int analyze_multiplicative_expression(std::shared_ptr<ast_node> multiplicative_expression, semantics_analysis_context &context) {
+    int semantics_analysis_result = 0;
+    return semantics_analysis_result;
+}
+
+/*
+cast_expression
+	: unary_expression
+	| '(' type_name ')' cast_expression
+	;
+ */
+int analyze_cast_expression(std::shared_ptr<ast_node> cast_expression, semantics_analysis_context &context) {
+    int semantics_analysis_result = 0;
+    return semantics_analysis_result;
+}
+
+/*
+unary_expression
+	: postfix_expression
+	| INC_OP unary_expression
+	| DEC_OP unary_expression
+	| unary_operator cast_expression
+	| SIZEOF unary_expression
+	| SIZEOF '(' type_name ')'
+	| ALIGNOF '(' type_name ')'
+	;
+ */
+int analyze_unary_expression(std::shared_ptr<ast_node> unary_expression, semantics_analysis_context &context) {
+    int semantics_analysis_result = 0;
+    return semantics_analysis_result;
+}
+
+/*
+postfix_expression
+	: primary_expression
+	| postfix_expression '[' expression ']'
+	| postfix_expression '(' ')'
+	| postfix_expression '(' argument_expression_list ')'
+	| postfix_expression '.' IDENTIFIER
+	| postfix_expression PTR_OP IDENTIFIER
+	| postfix_expression INC_OP
+	| postfix_expression DEC_OP
+	| '(' type_name ')' '{' initializer_list '}'
+	| '(' type_name ')' '{' initializer_list ',' '}'
+	;
+ */
+int analyze_postfix_expression(std::shared_ptr<ast_node> postfix_expression, semantics_analysis_context &context) {
+    int semantics_analysis_result = 0;
+    return semantics_analysis_result;
+}
+
+/*
+primary_expression
+	: IDENTIFIER
+	| constant
+	| string
+	| '(' expression ')'
+	| generic_selection
+	;
+ */
+int analyze_primary_expression(std::shared_ptr<ast_node> primary_expression, semantics_analysis_context &context) {
+    int semantics_analysis_result = 0;
+    return semantics_analysis_result;
+}
+
+/*
+expression
+	: assignment_expression
+	| expression ',' assignment_expression
+	;
+ */
+int analyze_expression(std::shared_ptr<ast_node> expression, semantics_analysis_context &context) {
+  int semantics_analysis_result = 0;
+  return semantics_analysis_result;
 }
