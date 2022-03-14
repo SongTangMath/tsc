@@ -835,34 +835,39 @@ int analyze_enumerator_list(std::shared_ptr<ast_node> enumerator_list, semantics
   int semantics_analysis_result = 0;
   int next_value = 0;
   for (std::shared_ptr<ast_node> enumerator : enumerators) {
-    std::pair<int, int> result = analyze_enumerator(enumerator, context, type, is_global, next_value);
-    semantics_analysis_result = result.first;
-    next_value = result.second;
+      int calculated_enumeration_constant_value;
+      semantics_analysis_result = analyze_enumerator(enumerator, context, type, is_global, next_value,calculated_enumeration_constant_value);
+    next_value = calculated_enumeration_constant_value+1;
     if (semantics_analysis_result)
       return semantics_analysis_result;
   }
   return 0;
 }
 
-std::pair<int, int> analyze_enumerator(std::shared_ptr<ast_node> enumerator, semantics_analysis_context &context,
-                                       std::shared_ptr<tsc_type> type, bool is_global, int next_value) {
+int analyze_enumerator(std::shared_ptr<ast_node> enumerator, semantics_analysis_context &context,
+                       std::shared_ptr<tsc_type> type, bool is_global, int next_value,int &calculated_enumeration_constant_value)
+ {
   int semantics_analysis_result = 0;
   int enumeration_constant_value = next_value;
   std::shared_ptr<ast_node> enumeration_constant = enumerator->items[0];
   std::shared_ptr<ast_node> constant_expression;
-  std::string identifier = *enumeration_constant->items[0]->lexeme;
+  std::shared_ptr<std::string> identifier = enumeration_constant->items[0]->lexeme;
   // 检查符号表中是否已经有同名的符号
-  for (std::map<std::string, std::shared_ptr<tsc_type>>::iterator it =
+  for (std::map<std::string, std::shared_ptr<tsc_symbol>>::iterator it =
            context.current_symbol_table_node->identifier_and_types.begin();
        it != context.current_symbol_table_node->identifier_and_types.end(); it++) {
-    if (it->first == identifier) {
+    if (it->first == *identifier) {
       printf("%s:%d error:\n\rredeclared '%s'\n", input_file_name.c_str(),
-             enumeration_constant->get_first_terminal_line_no(), identifier.c_str());
-      return std::make_pair<int, int>(1, 0);
+             enumeration_constant->get_first_terminal_line_no(), identifier->c_str());
+      return 1;
     }
   }
   //校验无误,加入tags
-  context.current_symbol_table_node->identifier_and_types[identifier] = type;
+
+  std::shared_ptr<tsc_symbol> symbol = std::make_shared<tsc_symbol>();
+  symbol->type = type;
+  symbol->identifier = identifier;
+  context.current_symbol_table_node->identifier_and_types[*identifier] = symbol;
   switch (enumerator->node_sub_type) {
   case NODE_TYPE_ENUMERATOR_SUBTYPE_ENUMERATION_CONSTANT_ASSIGN_CONSTANT_EXPRESSION:
     constant_expression = enumerator->items[2];
@@ -872,7 +877,7 @@ std::pair<int, int> analyze_enumerator(std::shared_ptr<ast_node> enumerator, sem
     break;
   }
 
-  return std::make_pair<int, int>(std::move(semantics_analysis_result), std::move(enumeration_constant_value));
+  return semantics_analysis_result;
 }
 
 int analyze_constant_expression(std::shared_ptr<ast_node> constant_expression, semantics_analysis_context &context) {
@@ -1201,6 +1206,26 @@ additive_expression
  */
 int analyze_additive_expression(std::shared_ptr<ast_node> additive_expression, semantics_analysis_context &context) {
   int semantics_analysis_result = 0;
+
+  std::shared_ptr<ast_node> multiplicative_expression;
+  std::shared_ptr<ast_node> next_additive_expression;
+
+  switch (additive_expression->node_sub_type) {
+  case NODE_TYPE_ADDITIVE_EXPRESSION_SUBTYPE_MULTIPLICATIVE_EXPRESSION:
+    multiplicative_expression = additive_expression->items[0];
+    break;
+  case NODE_TYPE_ADDITIVE_EXPRESSION_SUBTYPE_ADDITIVE_EXPRESSION_ADD_MULTIPLICATIVE_EXPRESSION:
+  case NODE_TYPE_ADDITIVE_EXPRESSION_SUBTYPE_ADDITIVE_EXPRESSION_SUB_MULTIPLICATIVE_EXPRESSION:
+    additive_expression = additive_expression->items[2];
+    next_additive_expression = additive_expression->items[0];
+    break;
+  }
+  semantics_analysis_result = analyze_multiplicative_expression(multiplicative_expression, context);
+  if (semantics_analysis_result)
+    return semantics_analysis_result;
+  if (next_additive_expression)
+    semantics_analysis_result = analyze_additive_expression(next_additive_expression, context);
+
   return semantics_analysis_result;
 }
 
@@ -1212,9 +1237,32 @@ multiplicative_expression
 	| multiplicative_expression '%' cast_expression
 	;
  */
-int analyze_multiplicative_expression(std::shared_ptr<ast_node> multiplicative_expression, semantics_analysis_context &context) {
-    int semantics_analysis_result = 0;
+int analyze_multiplicative_expression(std::shared_ptr<ast_node> multiplicative_expression,
+                                      semantics_analysis_context &context) {
+  int semantics_analysis_result = 0;
+
+  std::shared_ptr<ast_node> cast_expression;
+  std::shared_ptr<ast_node> next_multiplicative_expression;
+
+  switch (multiplicative_expression->node_sub_type) {
+  case NODE_TYPE_MULTIPLICATIVE_EXPRESSION_SUBTYPE_CAST_EXPRESSION:
+    cast_expression = multiplicative_expression->items[0];
+    break;
+  case NODE_TYPE_MULTIPLICATIVE_EXPRESSION_SUBTYPE_MULTIPLICATIVE_EXPRESSION_MUL_CAST_EXPRESSION:
+  case NODE_TYPE_MULTIPLICATIVE_EXPRESSION_SUBTYPE_MULTIPLICATIVE_EXPRESSION_DIV_CAST_EXPRESSION:
+  case NODE_TYPE_MULTIPLICATIVE_EXPRESSION_SUBTYPE_MULTIPLICATIVE_EXPRESSION_MOD_CAST_EXPRESSION:
+
+    cast_expression = multiplicative_expression->items[2];
+    next_multiplicative_expression = multiplicative_expression->items[0];
+    break;
+  }
+  semantics_analysis_result = analyze_cast_expression(cast_expression, context);
+  if (semantics_analysis_result)
     return semantics_analysis_result;
+  if (next_multiplicative_expression)
+    semantics_analysis_result = analyze_multiplicative_expression(next_multiplicative_expression, context);
+
+  return semantics_analysis_result;
 }
 
 /*
@@ -1224,8 +1272,38 @@ cast_expression
 	;
  */
 int analyze_cast_expression(std::shared_ptr<ast_node> cast_expression, semantics_analysis_context &context) {
-    int semantics_analysis_result = 0;
+  int semantics_analysis_result = 0;
+
+  std::shared_ptr<ast_node> unary_expression;
+  std::shared_ptr<ast_node> type_name;
+  std::shared_ptr<ast_node> next_cast_expression;
+
+  switch (cast_expression->node_sub_type) {
+  case NODE_TYPE_CAST_EXPRESSION_SUBTYPE_UNARY_EXPRESSION:
+    unary_expression = cast_expression->items[0];
+    break;
+  case NODE_TYPE_CAST_EXPRESSION_SUBTYPE_LEFT_PARENTHESIS_TYPE_NAME_RIGHT_PARENTHESIS_CAST_EXPRESSION:
+    type_name = cast_expression->items[1];
+    next_cast_expression = cast_expression->items[3];
+    break;
+  }
+  semantics_analysis_result = analyze_unary_expression(unary_expression, context);
+  if (semantics_analysis_result)
     return semantics_analysis_result;
+
+  std::shared_ptr<tsc_type> type_out;
+  if (type_name) {
+    type_out = std::make_shared<tsc_type>();
+    semantics_analysis_result = analyze_type_name(type_name, context, type_out);
+  }
+
+  if (semantics_analysis_result)
+    return semantics_analysis_result;
+
+  if (next_cast_expression)
+    semantics_analysis_result = analyze_cast_expression(next_cast_expression, context);
+
+  return semantics_analysis_result;
 }
 
 /*
@@ -1240,8 +1318,63 @@ unary_expression
 	;
  */
 int analyze_unary_expression(std::shared_ptr<ast_node> unary_expression, semantics_analysis_context &context) {
-    int semantics_analysis_result = 0;
+  int semantics_analysis_result = 0;
+
+  std::shared_ptr<ast_node> postfix_expression;
+  std::shared_ptr<ast_node> next_unary_expression;
+  std::shared_ptr<ast_node> type_name;
+  std::shared_ptr<ast_node> cast_expression;
+  switch (unary_expression->node_sub_type) {
+  case NODE_TYPE_UNARY_EXPRESSION_SUBTYPE_POSTFIX_EXPRESSION:
+    postfix_expression = unary_expression->items[0];
+    break;
+  case NODE_TYPE_UNARY_EXPRESSION_SUBTYPE_INC_OP_UNARY_EXPRESSION:
+  case NODE_TYPE_UNARY_EXPRESSION_SUBTYPE_DEC_OP_UNARY_EXPRESSION:
+    next_unary_expression = unary_expression->items[1];
+    break;
+  case NODE_TYPE_UNARY_EXPRESSION_SUBTYPE_UNARY_OPERATOR_CAST_EXPRESSION:
+    cast_expression = unary_expression->items[1];
+    break;
+  case NODE_TYPE_UNARY_EXPRESSION_SUBTYPE_SIZEOF_UNARY_EXPRESSION:
+    next_unary_expression = unary_expression->items[1];
+    break;
+  case NODE_TYPE_UNARY_EXPRESSION_SUBTYPE_SIZEOF_LEFT_PARENTHESIS_TYPE_NAME_RIGHT_PARENTHESIS:
+    type_name = unary_expression->items[2];
+    break;
+  case NODE_TYPE_UNARY_EXPRESSION_SUBTYPE_ALIGNOF_LEFT_PARENTHESIS_TYPE_NAME_RIGHT_PARENTHESIS:
+    printf("%s:%d error:\n\tunsupported C11 '_Alignof' in unary_expression\n", input_file_name.c_str(),
+           unary_expression->get_first_terminal_line_no());
+    return 1;
+  }
+  std::shared_ptr<tsc_type> type_out;
+  if (type_name) {
+    type_out = std::make_shared<tsc_type>();
+    semantics_analysis_result = analyze_type_name(type_name, context, type_out);
+  }
+
+  if (semantics_analysis_result)
     return semantics_analysis_result;
+
+
+    if (postfix_expression) {
+        semantics_analysis_result = analyze_postfix_expression(postfix_expression, context);
+    }
+    if (semantics_analysis_result)
+        return semantics_analysis_result;
+
+    return semantics_analysis_result;
+}
+
+/*
+type_name
+	: specifier_qualifier_list abstract_declarator
+	| specifier_qualifier_list
+	;
+ */
+int analyze_type_name(std::shared_ptr<ast_node> type_name, semantics_analysis_context &context,
+                      std::shared_ptr<tsc_type> out_type) {
+  int semantics_analysis_result = 0;
+  return semantics_analysis_result;
 }
 
 /*
@@ -1259,8 +1392,34 @@ postfix_expression
 	;
  */
 int analyze_postfix_expression(std::shared_ptr<ast_node> postfix_expression, semantics_analysis_context &context) {
-    int semantics_analysis_result = 0;
+  int semantics_analysis_result = 0;
+  std::shared_ptr<ast_node> primary_expression;
+  std::shared_ptr<ast_node> next_postfix_expression;
+
+  switch (postfix_expression->node_sub_type) {
+  case NODE_TYPE_POSTFIX_EXPRESSION_SUBTYPE_PRIMARY_EXPRESSION:
+      primary_expression = postfix_expression->items[0];
+    break;
+  case NODE_TYPE_POSTFIX_EXPRESSION_SUBTYPE_POSTFIX_EXPRESSION_LEFT_BRACKET_EXPRESSION_RIGHT_BRACKET:
+  case NODE_TYPE_POSTFIX_EXPRESSION_SUBTYPE_POSTFIX_EXPRESSION_LEFT_PARENTHESIS_RIGHT_PARENTHESIS:
+  case NODE_TYPE_POSTFIX_EXPRESSION_SUBTYPE_POSTFIX_EXPRESSION_LEFT_PARENTHESIS_ARGUMENT_EXPRESSION_LIST_RIGHT_PARENTHESIS:
+  case NODE_TYPE_POSTFIX_EXPRESSION_SUBTYPE_POSTFIX_EXPRESSION_DOT_IDENTIFIER:
+  case NODE_TYPE_POSTFIX_EXPRESSION_SUBTYPE_POSTFIX_EXPRESSION_PTR_OP_IDENTIFIER:
+  case NODE_TYPE_POSTFIX_EXPRESSION_SUBTYPE_POSTFIX_EXPRESSION_INC_OP:
+  case NODE_TYPE_POSTFIX_EXPRESSION_SUBTYPE_POSTFIX_EXPRESSION_DEC_OP:
+  case NODE_TYPE_POSTFIX_EXPRESSION_SUBTYPE_LEFT_PARENTHESIS_TYPE_NAME_RIGHT_PARENTHESIS_LEFT_BRACE_INITIALIZER_LIST_RIGHT_BRACE:
+  case NODE_TYPE_POSTFIX_EXPRESSION_SUBTYPE_LEFT_PARENTHESIS_TYPE_NAME_RIGHT_PARENTHESIS_LEFT_BRACE_INITIALIZER_LIST_COMMA_RIGHT_BRACE:
+
+    next_postfix_expression = postfix_expression->items[0];
+    break;
+  }
+
+  if (primary_expression)
+    semantics_analysis_result = analyze_primary_expression(primary_expression, context);
+  if (semantics_analysis_result)
     return semantics_analysis_result;
+
+  return semantics_analysis_result;
 }
 
 /*
@@ -1273,8 +1432,51 @@ primary_expression
 	;
  */
 int analyze_primary_expression(std::shared_ptr<ast_node> primary_expression, semantics_analysis_context &context) {
-    int semantics_analysis_result = 0;
+  int semantics_analysis_result = 0;
+    //这里的identifier可能是函数名
+  std::shared_ptr<ast_node> identifier_node;
+  std::shared_ptr<ast_node> constant;
+  std::shared_ptr<ast_node> string_node;
+  std::shared_ptr<ast_node> expression;
+
+  switch (primary_expression->node_sub_type) {
+  case NODE_TYPE_PRIMARY_EXPRESSION_SUBTYPE_IDENTIFIER:
+    identifier_node = primary_expression->items[0];
+    break;
+  case NODE_TYPE_PRIMARY_EXPRESSION_SUBTYPE_CONSTANT:
+    constant = primary_expression->items[0];
+    break;
+
+  case NODE_TYPE_PRIMARY_EXPRESSION_SUBTYPE_STRING: {
+    string_node = primary_expression->items[0];
+    string_node->symbol = std::make_shared<tsc_symbol>();
+    string_node->symbol->type = global_types::composite_type_const_char_star;
+    string_node->symbol->value = std::make_shared<expression_value>();
+
+    std::pair<int, std::shared_ptr<std::string>> semantics_analysis_result_and_string_literal =
+        analyze_string(string_node, context);
+    if (semantics_analysis_result_and_string_literal.first)
+      return semantics_analysis_result_and_string_literal.first;
+    string_node->symbol->value->string_value = semantics_analysis_result_and_string_literal.second;
+  }
+
+  break;
+  case NODE_TYPE_PRIMARY_EXPRESSION_SUBTYPE_LEFT_PARENTHESIS_EXPRESSION_RIGHT_PARENTHESIS:
+    expression = primary_expression->items[1];
+    break;
+
+  case NODE_TYPE_PRIMARY_EXPRESSION_SUBTYPE_GENERIC_SELECTION:
+    printf("%s:%d error:\n\tunsupported C11 'generic selection' in primary_expression\n", input_file_name.c_str(),
+           primary_expression->get_first_terminal_line_no());
+    return 1;
+  }
+
+  if (expression)
+    semantics_analysis_result = analyze_expression(expression, context);
+  if (semantics_analysis_result)
     return semantics_analysis_result;
+
+  return semantics_analysis_result;
 }
 
 /*
@@ -1286,4 +1488,78 @@ expression
 int analyze_expression(std::shared_ptr<ast_node> expression, semantics_analysis_context &context) {
   int semantics_analysis_result = 0;
   return semantics_analysis_result;
+}
+
+/*
+string
+	: STRING_LITERAL
+	| FUNC_NAME
+	;
+ */
+
+std::pair<int, std::shared_ptr<std::string>> analyze_string(std::shared_ptr<ast_node> string_node,
+                                                            semantics_analysis_context &context) {
+  std::shared_ptr<std::string> string_literal;
+  int semantics_analysis_result = 0;
+  switch (string_node->node_sub_type) {
+  case NODE_TYPE_STRING_SUBTYPE_STRING_LITERAL:
+    string_literal = std::make_shared<std::string>(extract_string(*string_node->items[0]->lexeme));
+    break;
+  case NODE_TYPE_STRING_SUBTYPE_FUNC_NAME:
+    printf("%s:%d error:\n\tunsupported C99 '__func__' in string\n", input_file_name.c_str(),
+           string_node->get_first_terminal_line_no());
+    semantics_analysis_result = 1;
+    break;
+  }
+  return std::make_pair<int, std::shared_ptr<std::string>>(std::move(semantics_analysis_result),
+                                                           std::move(string_literal));
+}
+
+void setup_type_system() {
+  global_types::primitive_type_void->type_id = PRIMITIVE_TYPE_VOID;
+  global_types::primitive_type_char->type_id = PRIMITIVE_TYPE_CHAR;
+  global_types::primitive_type_unsigned_char->type_id = PRIMITIVE_TYPE_UNSIGNED_CHAR;
+  global_types::primitive_type_short->type_id = PRIMITIVE_TYPE_SHORT;
+  global_types::primitive_type_unsigned_short->type_id = PRIMITIVE_TYPE_UNSIGNED_SHORT;
+  global_types::primitive_type_int->type_id = PRIMITIVE_TYPE_INT;
+  global_types::primitive_type_unsigned_int->type_id = PRIMITIVE_TYPE_UNSIGNED_INT;
+  global_types::primitive_type_long->type_id = PRIMITIVE_TYPE_LONG;
+  global_types::primitive_type_unsigned_long->type_id = PRIMITIVE_TYPE_UNSIGNED_LONG;
+  global_types::primitive_type_long_long->type_id = PRIMITIVE_TYPE_LONG_LONG;
+  global_types::primitive_type_unsigned_long_long->type_id = PRIMITIVE_TYPE_UNSIGNED_LONG_LONG;
+  global_types::primitive_type_float->type_id = PRIMITIVE_TYPE_FLOAT;
+  global_types::primitive_type_double->type_id = PRIMITIVE_TYPE_DOUBLE;
+  global_types::primitive_type_long_double->type_id = PRIMITIVE_TYPE_LONG_DOUBLE;
+
+  global_types::primitive_type_const_void->type_id = PRIMITIVE_TYPE_VOID;
+  global_types::primitive_type_const_char->type_id = PRIMITIVE_TYPE_CHAR;
+  global_types::primitive_type_const_unsigned_char->type_id = PRIMITIVE_TYPE_UNSIGNED_CHAR;
+  global_types::primitive_type_const_short->type_id = PRIMITIVE_TYPE_SHORT;
+  global_types::primitive_type_const_unsigned_short->type_id = PRIMITIVE_TYPE_UNSIGNED_SHORT;
+  global_types::primitive_type_const_int->type_id = PRIMITIVE_TYPE_INT;
+  global_types::primitive_type_const_unsigned_int->type_id = PRIMITIVE_TYPE_UNSIGNED_INT;
+  global_types::primitive_type_const_long->type_id = PRIMITIVE_TYPE_LONG;
+  global_types::primitive_type_const_unsigned_long->type_id = PRIMITIVE_TYPE_UNSIGNED_LONG;
+  global_types::primitive_type_const_long_long->type_id = PRIMITIVE_TYPE_LONG_LONG;
+  global_types::primitive_type_const_unsigned_long_long->type_id = PRIMITIVE_TYPE_UNSIGNED_LONG_LONG;
+  global_types::primitive_type_const_float->type_id = PRIMITIVE_TYPE_FLOAT;
+  global_types::primitive_type_const_double->type_id = PRIMITIVE_TYPE_DOUBLE;
+  global_types::primitive_type_const_long_double->type_id = PRIMITIVE_TYPE_LONG_DOUBLE;
+
+  global_types::primitive_type_const_void->const_type_qualifier_set = true;
+  global_types::primitive_type_const_char->const_type_qualifier_set = true;
+  global_types::primitive_type_const_unsigned_char->const_type_qualifier_set = true;
+  global_types::primitive_type_const_short->const_type_qualifier_set = true;
+  global_types::primitive_type_const_unsigned_short->const_type_qualifier_set = true;
+  global_types::primitive_type_const_int->const_type_qualifier_set = true;
+  global_types::primitive_type_const_unsigned_int->const_type_qualifier_set = true;
+  global_types::primitive_type_const_long->const_type_qualifier_set = true;
+  global_types::primitive_type_const_unsigned_long->const_type_qualifier_set = true;
+  global_types::primitive_type_const_long_long->const_type_qualifier_set = true;
+  global_types::primitive_type_const_unsigned_long_long->const_type_qualifier_set = true;
+  global_types::primitive_type_const_float->const_type_qualifier_set = true;
+  global_types::primitive_type_const_double->const_type_qualifier_set = true;
+  global_types::primitive_type_const_long_double->const_type_qualifier_set = true;
+
+  global_types::composite_type_const_char_star = construct_pointer_to(global_types::primitive_type_const_char);
 }

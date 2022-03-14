@@ -1,6 +1,5 @@
 
-enum B{x=3};
-enum B{x=3};
+enum C{x=y};
 int main() {
   return 0;
 }

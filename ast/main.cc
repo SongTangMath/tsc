@@ -4,6 +4,10 @@
 #include "semantics_analysis.h"
 
 int main() {
+    setup_type_system();
+    std::string input="\"ab\\r\\n\" \"cd\"";
+    std::string output=extract_string(input);
+    printf("%s\n", output.c_str());
     input_file_name = "../ast/test_source.c";
     FILE *file = fopen(input_file_name.c_str(), "r+");
     if (!file) {

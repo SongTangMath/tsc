@@ -2145,7 +2145,7 @@ direct_abstract_declarator
 	{
         ast_node node;
         node.node_type = NODE_TYPE_DIRECT_ABSTRACT_DECLARATOR;
-        node.node_sub_type = NODE_TYPE_DIRECT_ABSTRACT_DECLARATOR_SUBTYPE_DIRECT_ABSTRACT_DECLARATOR_LEFT_BRACKET_RIGHT_BRACKET;
+        node.node_sub_type = NODE_TYPE_DIRECT_ABSTRACT_DECLARATOR_SUBTYPE_DIRECT_ABSTRACT_DECLARATOR_LEFT_BRACKET_MUL_RIGHT_BRACKET;
         node.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //direct_abstract_declarator
 		node.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //LEFT_BRACKET
 		node.items.push_back(std::shared_ptr<ast_node>(new ast_node($3))); //RIGHT_BRACKET
@@ -2806,7 +2806,7 @@ function_definition
 	{
         ast_node node;
         node.node_type = NODE_TYPE_FUNCTION_DEFINITION;
-        node.node_sub_type = NODE_TYPE_FUNCTION_DEFINITION_SUBTYPE_DECLATARION_SPECIFIERS_DECLARATOR_DECLARATION_LIST_COMPOUND_STATEMENT;
+        node.node_sub_type = NODE_TYPE_FUNCTION_DEFINITION_SUBTYPE_DECLARATION_SPECIFIERS_DECLARATOR_DECLARATION_LIST_COMPOUND_STATEMENT;
         node.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //declaration_specifiers
 		node.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //declarator
 		node.items.push_back(std::shared_ptr<ast_node>(new ast_node($3))); //declaration_list
@@ -2817,7 +2817,7 @@ function_definition
 	{
         ast_node node;
         node.node_type = NODE_TYPE_FUNCTION_DEFINITION;
-        node.node_sub_type = NODE_TYPE_FUNCTION_DEFINITION_SUBTYPE_DECLATARION_SPECIFIERS_DECLARATOR_COMPOUND_STATEMENT;
+        node.node_sub_type = NODE_TYPE_FUNCTION_DEFINITION_SUBTYPE_DECLARATION_SPECIFIERS_DECLARATOR_COMPOUND_STATEMENT;
         node.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //declaration_specifiers
 		node.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //declarator
 		node.items.push_back(std::shared_ptr<ast_node>(new ast_node($3))); //compound_statement
@@ -2838,7 +2838,7 @@ declaration_list
 	{
         ast_node node;
         node.node_type = NODE_TYPE_DECLARATION_LIST;
-        node.node_sub_type = NODE_TYPE_DECLARATION_LIST_SUBTYPE_DECLARATION_LIST_DECLATATION;
+        node.node_sub_type = NODE_TYPE_DECLARATION_LIST_SUBTYPE_DECLARATION_LIST_DECLARATION;
         node.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //declaration_list
 		node.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //declaration
         $$=node;

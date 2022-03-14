@@ -346,7 +346,8 @@
 #define NODE_TYPE_DIRECT_ABSTRACT_DECLARATOR_SUBTYPE_LEFT_BRACKET_ASSIGNMENT_EXPRESSION_RIGHT_BRACKET 9
 #define NODE_TYPE_DIRECT_ABSTRACT_DECLARATOR_SUBTYPE_DIRECT_ABSTRACT_DECLARATOR_LEFT_BRACKET_RIGHT_BRACKET 10
 #define NODE_TYPE_DIRECT_ABSTRACT_DECLARATOR_SUBTYPE_DIRECT_ABSTRACT_DECLARATOR_LEFT_BRACKET_MUL_RIGHT_BRACKET 11
-#define NODE_TYPE_DIRECT_ABSTRACT_DECLARATOR_SUBTYPE_DIRECT_ABSTRACT_DECLARATOR_LEFT_BRACKET_STATIC_TYPE_QUALIFIER_LIST_ASSIGNMENT_EXPRESSION_RIGHT_BRACKET 12
+#define NODE_TYPE_DIRECT_ABSTRACT_DECLARATOR_SUBTYPE_DIRECT_ABSTRACT_DECLARATOR_LEFT_BRACKET_STATIC_TYPE_QUALIFIER_LIST_ASSIGNMENT_EXPRESSION_RIGHT_BRACKET \
+  12
 #define NODE_TYPE_DIRECT_ABSTRACT_DECLARATOR_SUBTYPE_DIRECT_ABSTRACT_DECLARATOR_LEFT_BRACKET_STATIC_ASSIGNMENT_EXPRESSION_RIGHT_BRACKET \
   13
 #define NODE_TYPE_DIRECT_ABSTRACT_DECLARATOR_SUBTYPE_DIRECT_ABSTRACT_DECLARATOR_LEFT_BRACKET_TYPE_QUALIFIER_LIST_ASSIGNMENT_EXPRESSION_RIGHT_BRACKET \
@@ -428,7 +429,8 @@
 #define NODE_TYPE_ITERATION_STATEMENT_SUBTYPE_WHILE_LEFT_PARENTHESIS_EXPRESSION_RIGHT_PARENTHESIS_EXPRESSION 1
 #define NODE_TYPE_ITERATION_STATEMENT_SUBTYPE_DO_STATEMENT_WHILE_LEFT_PARENTHESIS_EXPRESSION_RIGHT_PARENTHESIS_SEMI_COLON \
   2
-#define NODE_TYPE_ITERATION_STATEMENT_SUBTYPE_FOR_LEFT_PARENTHESIS_EXPRESSION_STATEMENT_EXPRESSION_STATEMENT_RIGHT_PARENTHESIS_STATEMENT 3
+#define NODE_TYPE_ITERATION_STATEMENT_SUBTYPE_FOR_LEFT_PARENTHESIS_EXPRESSION_STATEMENT_EXPRESSION_STATEMENT_RIGHT_PARENTHESIS_STATEMENT \
+  3
 #define NODE_TYPE_ITERATION_STATEMENT_SUBTYPE_FOR_LEFT_PARENTHESIS_EXPRESSION_STATEMENT_EXPRESSION_STATEMENT_EXPRESSION_RIGHT_PARENTHESIS_STATEMENT \
   4
 #define NODE_TYPE_ITERATION_STATEMENT_SUBTYPE_FOR_LEFT_PARENTHESIS_DECLARATION_EXPRESSION_STATEMENT_RIGHT_PARENTHESIS_STATEMENT \
@@ -452,16 +454,88 @@
 #define NODE_TYPE_EXTERNAL_DECLARATION_SUBTYPE_DECLARATION 2
 
 #define NODE_TYPE_FUNCTION_DEFINITION 75
-#define NODE_TYPE_FUNCTION_DEFINITION_SUBTYPE_DECLATARION_SPECIFIERS_DECLARATOR_DECLARATION_LIST_COMPOUND_STATEMENT 1
-#define NODE_TYPE_FUNCTION_DEFINITION_SUBTYPE_DECLATARION_SPECIFIERS_DECLARATOR_COMPOUND_STATEMENT 2
+#define NODE_TYPE_FUNCTION_DEFINITION_SUBTYPE_DECLARATION_SPECIFIERS_DECLARATOR_DECLARATION_LIST_COMPOUND_STATEMENT 1
+#define NODE_TYPE_FUNCTION_DEFINITION_SUBTYPE_DECLARATION_SPECIFIERS_DECLARATOR_COMPOUND_STATEMENT 2
 
 #define NODE_TYPE_DECLARATION_LIST 76
 #define NODE_TYPE_DECLARATION_LIST_SUBTYPE_DECLARATION 1
-#define NODE_TYPE_DECLARATION_LIST_SUBTYPE_DECLARATION_LIST_DECLATATION 2
+#define NODE_TYPE_DECLARATION_LIST_SUBTYPE_DECLARATION_LIST_DECLARATION 2
 
-#define EVALUATION_TYPE_INT 1
-#define EVALUATION_TYPE_DOUBLE 2
 int yyparse(void);
+
+struct expression_value {
+  bool is_valid=true;
+  int int_value;
+  double double_value;
+  std::shared_ptr<std::string>  string_value;
+};
+
+struct tsc_type {
+  bool const_type_qualifier_set = false;
+  bool restrict_type_qualifier_set = false;
+  bool volatile_type_qualifier_set = false;
+
+  bool is_typedef = false;
+  bool is_extern = false;
+  bool is_static = false;
+  bool is_register = false;
+
+  // for functions
+  bool is_inline = false;
+  bool is_noreturn = false;
+
+  // for struct union enum
+  bool is_complete = true; // struct A; -> incomplete
+  int type_id = -1;
+  //如果是指针则dereference后的type是underlying_type
+  bool is_pointer = false;
+  std::shared_ptr<tsc_type> underlying_type;
+};
+
+struct tsc_symbol {
+
+  int symbol_type;
+  std::shared_ptr<std::string> identifier;
+  std::shared_ptr<tsc_type> type;
+  std::shared_ptr<expression_value> value;
+};
+
+struct global_types {
+  static std::shared_ptr<tsc_type> primitive_type_void;
+  static std::shared_ptr<tsc_type> primitive_type_char;
+  static std::shared_ptr<tsc_type> primitive_type_unsigned_char;
+  static std::shared_ptr<tsc_type> primitive_type_short;
+  static std::shared_ptr<tsc_type> primitive_type_unsigned_short;
+  static std::shared_ptr<tsc_type> primitive_type_int;
+  static std::shared_ptr<tsc_type> primitive_type_unsigned_int;
+  static std::shared_ptr<tsc_type> primitive_type_long;
+  static std::shared_ptr<tsc_type> primitive_type_unsigned_long;
+  static std::shared_ptr<tsc_type> primitive_type_long_long;
+  static std::shared_ptr<tsc_type> primitive_type_unsigned_long_long;
+  static std::shared_ptr<tsc_type> primitive_type_float;
+  static std::shared_ptr<tsc_type> primitive_type_double;
+  static std::shared_ptr<tsc_type> primitive_type_long_double;
+
+  static std::shared_ptr<tsc_type> primitive_type_const_void;
+  static std::shared_ptr<tsc_type> primitive_type_const_char;
+  static std::shared_ptr<tsc_type> primitive_type_const_unsigned_char;
+  static std::shared_ptr<tsc_type> primitive_type_const_short;
+  static std::shared_ptr<tsc_type> primitive_type_const_unsigned_short;
+  static std::shared_ptr<tsc_type> primitive_type_const_int;
+  static std::shared_ptr<tsc_type> primitive_type_const_unsigned_int;
+  static std::shared_ptr<tsc_type> primitive_type_const_long;
+  static std::shared_ptr<tsc_type> primitive_type_const_unsigned_long;
+  static std::shared_ptr<tsc_type> primitive_type_const_long_long;
+  static std::shared_ptr<tsc_type> primitive_type_const_unsigned_long_long;
+  static std::shared_ptr<tsc_type> primitive_type_const_float;
+  static std::shared_ptr<tsc_type> primitive_type_const_double;
+  static std::shared_ptr<tsc_type> primitive_type_const_long_double;
+
+  // const char* type for string literal
+  static std::shared_ptr<tsc_type> composite_type_const_char_star;
+};
+
+std::shared_ptr<tsc_type> construct_pointer_to(std::shared_ptr<tsc_type> type);
 
 //语法树节点
 
@@ -473,24 +547,21 @@ struct ast_node {
   std::shared_ptr<std::string> lexeme;
   //对于terminal是此token的行号
   int line_no;
+
+  std::shared_ptr<tsc_symbol> symbol;
+
   std::string get_expression();
   int get_first_terminal_line_no();
-};
-
-struct evaluation_value {
-  int type;
-  bool is_valid;
-  int int_value;
-  double double_value;
-  void print_value();
 };
 
 extern std::shared_ptr<ast_node> translation_unit;
 extern std::string input_file_name;
 
+std::string extract_string(std::string input);
+
 int evaluate(std::string operator_token, int left, int right);
 double evaluate(std::string operator_token, int left, double right);
 double evaluate(std::string operator_token, double left, double right);
 double evaluate(std::string operator_token, double left, int right);
-evaluation_value evaluate(std::shared_ptr<ast_node> node);
+expression_value evaluate(std::shared_ptr<ast_node> node);
 #endif

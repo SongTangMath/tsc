@@ -20,27 +20,17 @@ enum {
   RECORD_TYPE_ENUM
 };
 
-struct tsc_type {
-  bool const_type_qualifier_set;
-  bool restrict_type_qualifier_set;
-  bool volatile_type_qualifier_set;
-
-  bool is_typedef;
-  bool is_extern;
-  bool is_static;
-  bool is_register;
-  //for functions
-  bool is_inline;
-  bool is_noreturn;
-  //for struct union enum
-  bool is_complete; // struct A; -> incomplete
-
-  int type_id;
+enum {
+    SYMBOL_TYPE_VARIABLE,
+    SYMBOL_TYPE_TEMPORARY_VARIABLE,
+    SYMBOL_TYPE_FUNCTION
 };
+
+void setup_type_system();
 
 struct symbol_table_node {
   std::shared_ptr<symbol_table_node> parent;
-  std::map<std::string, std::shared_ptr<tsc_type>> identifier_and_types;
+  std::map<std::string, std::shared_ptr<tsc_symbol>> identifier_and_types;
   std::map<std::string, std::shared_ptr<tsc_type>> struct_union_enum_names; //通常也称为tags
 };
 
@@ -77,18 +67,21 @@ bool check_type_compatibility(std::shared_ptr<tsc_type> type1, std::shared_ptr<t
 
 int analyze_enumerator_list(std::shared_ptr<ast_node> enumerator_list, semantics_analysis_context &context,
                             std::shared_ptr<tsc_type> type, bool is_global);
-//first=semantics_analysis_result second=  enumeration_constant_value
-std::pair<int, int> analyze_enumerator(std::shared_ptr<ast_node> enumerator, semantics_analysis_context &context,
-                                       std::shared_ptr<tsc_type> type, bool is_global, int next_value);
+int analyze_enumerator(std::shared_ptr<ast_node> enumerator, semantics_analysis_context &context,
+                                       std::shared_ptr<tsc_type> type, bool is_global, int next_value,int &calculated_enumeration_constant_value);
 
 int analyze_constant_expression(std::shared_ptr<ast_node> constant_expression, semantics_analysis_context &context);
-int analyze_conditional_expression(std::shared_ptr<ast_node> conditional_expression, semantics_analysis_context &context);
+int analyze_conditional_expression(std::shared_ptr<ast_node> conditional_expression,
+                                   semantics_analysis_context &context);
 
 int analyze_logical_or_expression(std::shared_ptr<ast_node> logical_or_expression, semantics_analysis_context &context);
-int analyze_logical_and_expression(std::shared_ptr<ast_node> logical_and_expression, semantics_analysis_context &context);
+int analyze_logical_and_expression(std::shared_ptr<ast_node> logical_and_expression,
+                                   semantics_analysis_context &context);
 
-int analyze_inclusive_or_expression(std::shared_ptr<ast_node> inclusive_or_expression, semantics_analysis_context &context);
-int analyze_exclusive_or_expression(std::shared_ptr<ast_node> exclusive_or_expression, semantics_analysis_context &context);
+int analyze_inclusive_or_expression(std::shared_ptr<ast_node> inclusive_or_expression,
+                                    semantics_analysis_context &context);
+int analyze_exclusive_or_expression(std::shared_ptr<ast_node> exclusive_or_expression,
+                                    semantics_analysis_context &context);
 int analyze_and_expression(std::shared_ptr<ast_node> and_expression, semantics_analysis_context &context);
 
 int analyze_equality_expression(std::shared_ptr<ast_node> equality_expression, semantics_analysis_context &context);
@@ -96,15 +89,20 @@ int analyze_relational_expression(std::shared_ptr<ast_node> relational_expressio
 int analyze_shift_expression(std::shared_ptr<ast_node> shift_expression, semantics_analysis_context &context);
 
 int analyze_additive_expression(std::shared_ptr<ast_node> additive_expression, semantics_analysis_context &context);
-int analyze_multiplicative_expression(std::shared_ptr<ast_node> multiplicative_expression, semantics_analysis_context &context);
+int analyze_multiplicative_expression(std::shared_ptr<ast_node> multiplicative_expression,
+                                      semantics_analysis_context &context);
 int analyze_cast_expression(std::shared_ptr<ast_node> cast_expression, semantics_analysis_context &context);
 
 int analyze_unary_expression(std::shared_ptr<ast_node> unary_expression, semantics_analysis_context &context);
 int analyze_postfix_expression(std::shared_ptr<ast_node> postfix_expression, semantics_analysis_context &context);
 int analyze_primary_expression(std::shared_ptr<ast_node> primary_expression, semantics_analysis_context &context);
 
-
+int analyze_type_name(std::shared_ptr<ast_node> type_name, semantics_analysis_context &context,
+                      std::shared_ptr<tsc_type> out_type);
 int analyze_expression(std::shared_ptr<ast_node> expression, semantics_analysis_context &context);
 
 int analyze_assignment_expression(std::shared_ptr<ast_node> assignment_expression, semantics_analysis_context &context);
-int analyze_argument_expression_list(std::shared_ptr<ast_node> argument_expression_list, semantics_analysis_context &context);
+int analyze_argument_expression_list(std::shared_ptr<ast_node> argument_expression_list,
+                                     semantics_analysis_context &context);
+
+std::pair<int, std::shared_ptr<std::string>> analyze_string(std::shared_ptr<ast_node> string_node, semantics_analysis_context &context);
