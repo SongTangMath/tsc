@@ -93,17 +93,17 @@ static int check_type(void);
 
 {L}{A}*					    { yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return check_type(); }
 
-{HP}{H}+{IS}?				{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return I_CONSTANT; }
-{NZ}{D}*{IS}?				{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return I_CONSTANT; }
-"0"{O}*{IS}?				{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return I_CONSTANT; }
-{CP}?"'"([^'\\\n]|{ES})+"'"	{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return I_CONSTANT; }
+{HP}{H}+{IS}?				{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); yylval.lexeme_sub_type=I_CONSTANT_SUBTYPE_HEX_DIGIT; return I_CONSTANT; }
+{NZ}{D}*{IS}?				{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); yylval.lexeme_sub_type=I_CONSTANT_SUBTYPE_DECIMAL_DIGIT; return I_CONSTANT; }
+"0"{O}*{IS}?				{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); yylval.lexeme_sub_type=I_CONSTANT_SUBTYPE_OCTAL_DIGIT; return I_CONSTANT; }
+{CP}?"'"([^'\\\n]|{ES})+"'"	{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); yylval.lexeme_sub_type=I_CONSTANT_SUBTYPE_CHAR_DIGIT; return I_CONSTANT; }
 
-{D}+{E}{FS}?				{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return F_CONSTANT; }
-{D}*"."{D}+{E}?{FS}?		{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return F_CONSTANT; }
-{D}+"."{E}?{FS}?			{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return F_CONSTANT; }
-{HP}{H}+{P}{FS}?			{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return F_CONSTANT; }
-{HP}{H}*"."{H}+{P}{FS}?		{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return F_CONSTANT; }
-{HP}{H}+"."{P}{FS}?			{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return F_CONSTANT; }
+{D}+{E}{FS}?				{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); yylval.lexeme_sub_type=F_CONSTANT_SUBTYPE_INTEGER_SIGNIFICANT_PART; return F_CONSTANT; }
+{D}*"."{D}+{E}?{FS}?		{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); yylval.lexeme_sub_type=F_CONSTANT_SUBTYPE_FLOATING_SIGNIFICANT_PART; return F_CONSTANT; }
+{D}+"."{E}?{FS}?			{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); yylval.lexeme_sub_type=F_CONSTANT_SUBTYPE_INTEGER_DOT_SIGNIFICANT_PART; return F_CONSTANT; }
+{HP}{H}+{P}{FS}?			{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); yylval.lexeme_sub_type=F_CONSTANT_SUBTYPE_HEX_INTEGER_SIGNIFICANT_PART; return F_CONSTANT; }
+{HP}{H}*"."{H}+{P}{FS}?		{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); yylval.lexeme_sub_type=F_CONSTANT_SUBTYPE_HEX_FLOATING_SIGNIFICANT_PART; return F_CONSTANT; }
+{HP}{H}+"."{P}{FS}?			{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); yylval.lexeme_sub_type=F_CONSTANT_SUBTYPE_HEX_INTEGER_DOT_SIGNIFICANT_PART; return F_CONSTANT; }
 
 ({SP}?\"([^"\\\n]|{ES})*\"{WS}*)+	{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return STRING_LITERAL; }
 

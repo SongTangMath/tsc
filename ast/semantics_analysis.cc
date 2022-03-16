@@ -30,6 +30,7 @@ int semantics_analysis(std::shared_ptr<ast_node> translation_unit) {
   // 语法树根节点的 external_declaration 实际上是最后一个
   external_declarations =
       std::vector<std::shared_ptr<ast_node>>(external_declarations.rbegin(), external_declarations.rend());
+  translation_unit->sub_nodes = external_declarations;
   for (std::shared_ptr<ast_node> external_declaration : external_declarations) {
     // printf("external_declaration->node_sub_type %d\n", external_declaration->node_sub_type);
     switch (external_declaration->node_sub_type) {
@@ -835,9 +836,10 @@ int analyze_enumerator_list(std::shared_ptr<ast_node> enumerator_list, semantics
   int semantics_analysis_result = 0;
   int next_value = 0;
   for (std::shared_ptr<ast_node> enumerator : enumerators) {
-      int calculated_enumeration_constant_value;
-      semantics_analysis_result = analyze_enumerator(enumerator, context, type, is_global, next_value,calculated_enumeration_constant_value);
-    next_value = calculated_enumeration_constant_value+1;
+    int calculated_enumeration_constant_value;
+    semantics_analysis_result =
+        analyze_enumerator(enumerator, context, type, is_global, next_value, calculated_enumeration_constant_value);
+    next_value = calculated_enumeration_constant_value + 1;
     if (semantics_analysis_result)
       return semantics_analysis_result;
   }
@@ -845,8 +847,8 @@ int analyze_enumerator_list(std::shared_ptr<ast_node> enumerator_list, semantics
 }
 
 int analyze_enumerator(std::shared_ptr<ast_node> enumerator, semantics_analysis_context &context,
-                       std::shared_ptr<tsc_type> type, bool is_global, int next_value,int &calculated_enumeration_constant_value)
- {
+                       std::shared_ptr<tsc_type> type, bool is_global, int next_value,
+                       int &calculated_enumeration_constant_value) {
   int semantics_analysis_result = 0;
   int enumeration_constant_value = next_value;
   std::shared_ptr<ast_node> enumeration_constant = enumerator->items[0];
@@ -854,8 +856,8 @@ int analyze_enumerator(std::shared_ptr<ast_node> enumerator, semantics_analysis_
   std::shared_ptr<std::string> identifier = enumeration_constant->items[0]->lexeme;
   // 检查符号表中是否已经有同名的符号
   for (std::map<std::string, std::shared_ptr<tsc_symbol>>::iterator it =
-           context.current_symbol_table_node->identifier_and_types.begin();
-       it != context.current_symbol_table_node->identifier_and_types.end(); it++) {
+           context.current_symbol_table_node->identifier_and_symbols.begin();
+       it != context.current_symbol_table_node->identifier_and_symbols.end(); it++) {
     if (it->first == *identifier) {
       printf("%s:%d error:\n\rredeclared '%s'\n", input_file_name.c_str(),
              enumeration_constant->get_first_terminal_line_no(), identifier->c_str());
@@ -867,7 +869,8 @@ int analyze_enumerator(std::shared_ptr<ast_node> enumerator, semantics_analysis_
   std::shared_ptr<tsc_symbol> symbol = std::make_shared<tsc_symbol>();
   symbol->type = type;
   symbol->identifier = identifier;
-  context.current_symbol_table_node->identifier_and_types[*identifier] = symbol;
+  symbol->symbol_type = SYMBOL_TYPE_ENUMERATION_CONSTANT;
+  context.current_symbol_table_node->identifier_and_symbols[*identifier] = symbol;
   switch (enumerator->node_sub_type) {
   case NODE_TYPE_ENUMERATOR_SUBTYPE_ENUMERATION_CONSTANT_ASSIGN_CONSTANT_EXPRESSION:
     constant_expression = enumerator->items[2];
@@ -1355,14 +1358,13 @@ int analyze_unary_expression(std::shared_ptr<ast_node> unary_expression, semanti
   if (semantics_analysis_result)
     return semantics_analysis_result;
 
-
-    if (postfix_expression) {
-        semantics_analysis_result = analyze_postfix_expression(postfix_expression, context);
-    }
-    if (semantics_analysis_result)
-        return semantics_analysis_result;
-
+  if (postfix_expression) {
+    semantics_analysis_result = analyze_postfix_expression(postfix_expression, context);
+  }
+  if (semantics_analysis_result)
     return semantics_analysis_result;
+
+  return semantics_analysis_result;
 }
 
 /*
@@ -1398,7 +1400,7 @@ int analyze_postfix_expression(std::shared_ptr<ast_node> postfix_expression, sem
 
   switch (postfix_expression->node_sub_type) {
   case NODE_TYPE_POSTFIX_EXPRESSION_SUBTYPE_PRIMARY_EXPRESSION:
-      primary_expression = postfix_expression->items[0];
+    primary_expression = postfix_expression->items[0];
     break;
   case NODE_TYPE_POSTFIX_EXPRESSION_SUBTYPE_POSTFIX_EXPRESSION_LEFT_BRACKET_EXPRESSION_RIGHT_BRACKET:
   case NODE_TYPE_POSTFIX_EXPRESSION_SUBTYPE_POSTFIX_EXPRESSION_LEFT_PARENTHESIS_RIGHT_PARENTHESIS:
@@ -1433,7 +1435,7 @@ primary_expression
  */
 int analyze_primary_expression(std::shared_ptr<ast_node> primary_expression, semantics_analysis_context &context) {
   int semantics_analysis_result = 0;
-    //这里的identifier可能是函数名
+  //这里的identifier可能是函数名
   std::shared_ptr<ast_node> identifier_node;
   std::shared_ptr<ast_node> constant;
   std::shared_ptr<ast_node> string_node;
@@ -1452,12 +1454,11 @@ int analyze_primary_expression(std::shared_ptr<ast_node> primary_expression, sem
     string_node->symbol = std::make_shared<tsc_symbol>();
     string_node->symbol->type = global_types::composite_type_const_char_star;
     string_node->symbol->value = std::make_shared<expression_value>();
+    string_node->symbol->value->string_value = std::make_shared<std::string>();
+    semantics_analysis_result = analyze_string(string_node, context, *string_node->symbol->value->string_value);
+    if (semantics_analysis_result)
+      return semantics_analysis_result;
 
-    std::pair<int, std::shared_ptr<std::string>> semantics_analysis_result_and_string_literal =
-        analyze_string(string_node, context);
-    if (semantics_analysis_result_and_string_literal.first)
-      return semantics_analysis_result_and_string_literal.first;
-    string_node->symbol->value->string_value = semantics_analysis_result_and_string_literal.second;
   }
 
   break;
@@ -1471,10 +1472,24 @@ int analyze_primary_expression(std::shared_ptr<ast_node> primary_expression, sem
     return 1;
   }
 
-  if (expression)
+  if (constant) {
+    semantics_analysis_result = analyze_constant(constant, context);
+    if (semantics_analysis_result)
+      return semantics_analysis_result;
+    primary_expression->symbol = constant->symbol;
+  }
+
+  // int a[2,3]; ->syntax error condition_expression必须含有括号才可能含有逗号表达式
+  // int a[(2,3)]; ->error: variably modified 'a' at file scope 含有逗号那就不是constant expression
+  if (expression) {
     semantics_analysis_result = analyze_expression(expression, context);
-  if (semantics_analysis_result)
-    return semantics_analysis_result;
+    if (semantics_analysis_result)
+      return semantics_analysis_result;
+    //这里要额外检验expression是否含有多个assignment_expression 是则修改symbol_type;
+    primary_expression->symbol = std::make_shared<tsc_symbol>(*expression->symbol);
+    if (expression->sub_nodes.size() > 1)
+      primary_expression->symbol->symbol_type = SYMBOL_TYPE_TEMPORARY_VARIABLE;
+  }
 
   return semantics_analysis_result;
 }
@@ -1487,6 +1502,33 @@ expression
  */
 int analyze_expression(std::shared_ptr<ast_node> expression, semantics_analysis_context &context) {
   int semantics_analysis_result = 0;
+  std::vector<std::shared_ptr<ast_node>> assignment_expressions;
+  std::shared_ptr<ast_node> node = expression;
+  while (expression->node_type == NODE_TYPE_ASSIGNMENT_EXPRESSION &&
+         expression->node_sub_type ==
+             NODE_TYPE_ASSIGNMENT_EXPRESSION_SUBTYPE_UNARY_EXPRESSION_ASSIGNMENT_OPERATOR_ASSIGNMENT_EXPRESSION) {
+    assignment_expressions.push_back(node->items[1]);
+    node = node->items[0];
+  }
+  assignment_expressions.push_back(node->items[0]);
+  assignment_expressions =
+      std::vector<std::shared_ptr<ast_node>>(assignment_expressions.rbegin(), assignment_expressions.rend());
+  expression->sub_nodes = assignment_expressions;
+
+  for (std::shared_ptr<ast_node> assignment_expression : assignment_expressions) {
+    semantics_analysis_result = analyze_assignment_expression(assignment_expression, context);
+    if (semantics_analysis_result)
+      return semantics_analysis_result;
+  }
+  //逗号表达式的结果是最后一项
+  expression->symbol = assignment_expressions[assignment_expressions.size() - 1]->symbol;
+
+  return semantics_analysis_result;
+}
+
+int analyze_assignment_expression(std::shared_ptr<ast_node> assignment_expression,
+                                  semantics_analysis_context &context) {
+  int semantics_analysis_result = 0;
   return semantics_analysis_result;
 }
 
@@ -1497,13 +1539,13 @@ string
 	;
  */
 
-std::pair<int, std::shared_ptr<std::string>> analyze_string(std::shared_ptr<ast_node> string_node,
-                                                            semantics_analysis_context &context) {
+int analyze_string(std::shared_ptr<ast_node> string_node, semantics_analysis_context &context,
+                   std::string &out_string) {
   std::shared_ptr<std::string> string_literal;
   int semantics_analysis_result = 0;
   switch (string_node->node_sub_type) {
   case NODE_TYPE_STRING_SUBTYPE_STRING_LITERAL:
-    string_literal = std::make_shared<std::string>(extract_string(*string_node->items[0]->lexeme));
+    out_string = extract_string(*string_node->items[0]->lexeme);
     break;
   case NODE_TYPE_STRING_SUBTYPE_FUNC_NAME:
     printf("%s:%d error:\n\tunsupported C99 '__func__' in string\n", input_file_name.c_str(),
@@ -1511,11 +1553,195 @@ std::pair<int, std::shared_ptr<std::string>> analyze_string(std::shared_ptr<ast_
     semantics_analysis_result = 1;
     break;
   }
-  return std::make_pair<int, std::shared_ptr<std::string>>(std::move(semantics_analysis_result),
-                                                           std::move(string_literal));
+  return semantics_analysis_result;
+}
+
+/*
+constant
+	: I_CONSTANT	includes character_constant
+    | F_CONSTANT
+    | ENUMERATION_CONSTANT	 after it has been defined as such
+;
+ */
+int analyze_constant(std::shared_ptr<ast_node> constant, semantics_analysis_context &context) {
+  int semantics_analysis_result;
+  switch (constant->node_sub_type) {
+  case NODE_TYPE_CONSTANT_SUBTYPE_ICONSTANT:
+    semantics_analysis_result = check_integer_constant(constant->items[0]);
+    break;
+  case NODE_TYPE_CONSTANT_SUBTYPE_FCONSTANT:
+    semantics_analysis_result = check_floating_constant(constant->items[0]);
+    break;
+  case NODE_TYPE_CONSTANT_SUBTYPE_ENUMERATION_CONSTANT:
+    printf("%s:%d error:\n\tshould not reach enumeration constant\n", input_file_name.c_str(),
+           constant->get_first_terminal_line_no());
+    semantics_analysis_result = 1;
+    break;
+  }
+  return semantics_analysis_result;
+}
+
+int check_integer_constant(std::shared_ptr<ast_node> integer_constant) {
+  std::string lexeme = *integer_constant->lexeme;
+  integer_constant->symbol = std::make_shared<tsc_symbol>();
+  int semantics_analysis_result = 0;
+  integer_constant->symbol->symbol_type = SYMBOL_TYPE_ICONSTANT;
+  integer_constant->symbol->value = std::make_shared<expression_value>();
+  // std::stoi std::stol std::stoull std::stoll 最后一个参数base设置为0的时候可以根据输入串格式决定正确的base 这些函数会自动忽略后缀
+  // 注意并没有stou或者stoui来完成到unsigned int的转换
+  // 后缀与字面量类型的细节参见手册.u表示unsigned,l表示至少是long(可能是long long) ll表示是long long
+  // 这里我们简单处理.没有后缀认为是int,l后缀认为是long,ll后缀认为是long long
+  switch (integer_constant->lexeme_sub_type) {
+  case I_CONSTANT_SUBTYPE_HEX_DIGIT:
+    // (0[xX])[a-fA-F0-9]+(((u|U)(l|L|ll|LL)?)|((l|L|ll|LL)(u|U)?))？
+  case I_CONSTANT_SUBTYPE_DECIMAL_DIGIT:
+    // [1-9][0-9]*(((u|U)(l|L|ll|LL)?)|((l|L|ll|LL)(u|U)?))？
+  case I_CONSTANT_SUBTYPE_OCTAL_DIGIT: {
+    // 0[0-7]*(((u|U)(l|L|ll|LL)?)|((l|L|ll|LL)(u|U)?))?
+
+    int suffix_length = 0;
+    while (suffix_length < lexeme.length() && isalpha(lexeme[lexeme.length() - 1 - suffix_length]))
+      suffix_length++;
+    std::string suffix = lexeme.substr(lexeme.length() - suffix_length, suffix_length);
+    if (is_unsigned_suffix(suffix)) {
+      if (is_long_suffix(suffix)) {
+        //unsigned long
+        integer_constant->symbol->type = global_types::primitive_type_unsigned_long;
+        integer_constant->symbol->value->unsigned_long_value = std::stoul(lexeme, nullptr, 0);
+
+      } else if (is_long_long_suffix(suffix)) {
+        //unsigned long long
+        integer_constant->symbol->type = global_types::primitive_type_unsigned_long_long;
+        integer_constant->symbol->value->unsigned_long_long_value = std::stoull(lexeme, nullptr, 0);
+
+      } else {
+        //unsigned int
+        integer_constant->symbol->type = global_types::primitive_type_unsigned_int;
+        integer_constant->symbol->value->unsigned_int_value = (unsigned int)std::stoul(lexeme, nullptr, 0);
+      }
+    }
+
+    else {
+      if (is_long_suffix(suffix)) {
+        // long
+        integer_constant->symbol->type = global_types::primitive_type_long;
+        integer_constant->symbol->value->long_value = std::stol(lexeme, nullptr, 0);
+
+      } else if (is_long_long_suffix(suffix)) {
+        // long long
+        integer_constant->symbol->type = global_types::primitive_type_long_long;
+        integer_constant->symbol->value->long_long_value = std::stoll(lexeme, nullptr, 0);
+
+      } else {
+        // int
+        integer_constant->symbol->type = global_types::primitive_type_int;
+        integer_constant->symbol->value->int_value = std::stoi(lexeme, nullptr, 0);
+      }
+    }
+
+  }
+
+  break;
+  case I_CONSTANT_SUBTYPE_CHAR_DIGIT:
+    // (u|U|L)?'([^'\\\n]|(\\(['"\?\\abfnrtv]|[0-7]{1,3}|x[a-fA-F0-9]+)))+'
+    // 前缀可以是u,U,l然后是一对单引号括起来的序列.序列中的一个元素可以是一个非'\'以及'\n'的普通字符或者一个转义字符.
+    // 转义字符是普通转义字符如'\n'或者8进制(如\012)或者16进制(如\x12).这里我们不支持数字转义字符与宽字符
+    {
+      bool is_unsigned = false;
+      bool is_wide = false;
+      bool has_prefix = false;
+      if (lexeme[0] == 'u' || lexeme[0] == 'U') {
+        is_unsigned = true;
+        has_prefix = true;
+      }
+      if (lexeme[0] == 'L') {
+        is_wide = true;
+        has_prefix = true;
+      }
+      std::string char_sequence;
+      if (has_prefix)
+        char_sequence = lexeme.substr(2, lexeme.length() - 3);
+      else
+        char_sequence = lexeme.substr(1, lexeme.length() - 2);
+      integer_constant->symbol->type = global_types::primitive_type_char;
+
+      if (char_sequence[0] == '\\') {
+        if (char_sequence.length() == 1) {
+          printf("%s:%d error:\n\tunknown escape sequence \n", input_file_name.c_str(),
+                 integer_constant->get_first_terminal_line_no());
+          semantics_analysis_result = 1;
+          break;
+        } else {
+          integer_constant->symbol->value->char_value = escape_char(char_sequence[1]);
+        }
+      } else {
+        integer_constant->symbol->value->char_value = char_sequence[0];
+      }
+    }
+    break;
+  }
+
+  return semantics_analysis_result;
+}
+int check_floating_constant(std::shared_ptr<ast_node> floating_constant) {
+  // std::stof std::stod std::stold 字符串转为float,double,long double
+  std::string lexeme = *floating_constant->lexeme;
+  floating_constant->symbol = std::make_shared<tsc_symbol>();
+  int semantics_analysis_result = 0;
+  floating_constant->symbol->symbol_type = SYMBOL_TYPE_FCONSTANT;
+  floating_constant->symbol->value = std::make_shared<expression_value>();
+  int suffix_length = 0;
+  while (suffix_length < lexeme.length() && isalpha(lexeme[lexeme.length() - 1 - suffix_length]))
+    suffix_length++;
+  std::string suffix = lexeme.substr(lexeme.length() - suffix_length, suffix_length);
+  if (is_long_double_suffix(suffix)) {
+    floating_constant->symbol->type = global_types::primitive_type_long_long;
+    floating_constant->symbol->value->long_double_value = std::stold(lexeme, nullptr);
+
+  } else if (is_float_suffix(suffix)) {
+    floating_constant->symbol->type = global_types::primitive_type_float;
+    floating_constant->symbol->value->float_value = std::stof(lexeme, nullptr);
+
+  } else {
+    floating_constant->symbol->type = global_types::primitive_type_double;
+    floating_constant->symbol->value->double_value = std::stod(lexeme, nullptr);
+  }
+
+  return semantics_analysis_result;
 }
 
 void setup_type_system() {
+
+  global_types::primitive_type_void = std::make_shared<tsc_type>();
+  global_types::primitive_type_char = std::make_shared<tsc_type>();
+  global_types::primitive_type_unsigned_char = std::make_shared<tsc_type>();
+  global_types::primitive_type_short = std::make_shared<tsc_type>();
+  global_types::primitive_type_unsigned_short = std::make_shared<tsc_type>();
+  global_types::primitive_type_int = std::make_shared<tsc_type>();
+  global_types::primitive_type_unsigned_int = std::make_shared<tsc_type>();
+  global_types::primitive_type_long = std::make_shared<tsc_type>();
+  global_types::primitive_type_unsigned_long = std::make_shared<tsc_type>();
+  global_types::primitive_type_long_long = std::make_shared<tsc_type>();
+  global_types::primitive_type_unsigned_long_long = std::make_shared<tsc_type>();
+  global_types::primitive_type_float = std::make_shared<tsc_type>();
+  global_types::primitive_type_double = std::make_shared<tsc_type>();
+  global_types::primitive_type_long_double = std::make_shared<tsc_type>();
+  global_types::composite_type_const_char_star = std::make_shared<tsc_type>();
+  global_types::primitive_type_const_void = std::make_shared<tsc_type>();
+  global_types::primitive_type_const_char = std::make_shared<tsc_type>();
+  global_types::primitive_type_const_unsigned_char = std::make_shared<tsc_type>();
+  global_types::primitive_type_const_short = std::make_shared<tsc_type>();
+  global_types::primitive_type_const_unsigned_short = std::make_shared<tsc_type>();
+  global_types::primitive_type_const_int = std::make_shared<tsc_type>();
+  global_types::primitive_type_const_unsigned_int = std::make_shared<tsc_type>();
+  global_types::primitive_type_const_long = std::make_shared<tsc_type>();
+  global_types::primitive_type_const_unsigned_long = std::make_shared<tsc_type>();
+  global_types::primitive_type_const_long_long = std::make_shared<tsc_type>();
+  global_types::primitive_type_const_unsigned_long_long = std::make_shared<tsc_type>();
+  global_types::primitive_type_const_float = std::make_shared<tsc_type>();
+  global_types::primitive_type_const_double = std::make_shared<tsc_type>();
+  global_types::primitive_type_const_long_double = std::make_shared<tsc_type>();
+
   global_types::primitive_type_void->type_id = PRIMITIVE_TYPE_VOID;
   global_types::primitive_type_char->type_id = PRIMITIVE_TYPE_CHAR;
   global_types::primitive_type_unsigned_char->type_id = PRIMITIVE_TYPE_UNSIGNED_CHAR;

@@ -21,20 +21,26 @@ enum {
 };
 
 enum {
-    SYMBOL_TYPE_VARIABLE,
-    SYMBOL_TYPE_TEMPORARY_VARIABLE,
-    SYMBOL_TYPE_FUNCTION
+  SYMBOL_TYPE_VARIABLE,
+  SYMBOL_TYPE_TEMPORARY_VARIABLE,
+  SYMBOL_TYPE_FUNCTION,
+  SYMBOL_TYPE_ICONSTANT,
+  SYMBOL_TYPE_FCONSTANT,
+  SYMBOL_TYPE_ENUMERATION_CONSTANT
 };
 
 void setup_type_system();
 
 struct symbol_table_node {
   std::shared_ptr<symbol_table_node> parent;
-  std::map<std::string, std::shared_ptr<tsc_symbol>> identifier_and_types;
+  std::map<std::string, std::shared_ptr<tsc_symbol>> identifier_and_symbols;
   std::map<std::string, std::shared_ptr<tsc_type>> struct_union_enum_names; //通常也称为tags
+  std::map<std::string, std::shared_ptr<tsc_symbol>> functions;
 };
 
 struct semantics_analysis_context {
+  //符号表允许struct tag,变量名或者函数名可以相同.例如 struct A{}; int A; OK.
+  // void func(); int func; OK
   std::shared_ptr<symbol_table_node> current_symbol_table_node;
 };
 
@@ -68,7 +74,8 @@ bool check_type_compatibility(std::shared_ptr<tsc_type> type1, std::shared_ptr<t
 int analyze_enumerator_list(std::shared_ptr<ast_node> enumerator_list, semantics_analysis_context &context,
                             std::shared_ptr<tsc_type> type, bool is_global);
 int analyze_enumerator(std::shared_ptr<ast_node> enumerator, semantics_analysis_context &context,
-                                       std::shared_ptr<tsc_type> type, bool is_global, int next_value,int &calculated_enumeration_constant_value);
+                       std::shared_ptr<tsc_type> type, bool is_global, int next_value,
+                       int &calculated_enumeration_constant_value);
 
 int analyze_constant_expression(std::shared_ptr<ast_node> constant_expression, semantics_analysis_context &context);
 int analyze_conditional_expression(std::shared_ptr<ast_node> conditional_expression,
@@ -101,8 +108,13 @@ int analyze_type_name(std::shared_ptr<ast_node> type_name, semantics_analysis_co
                       std::shared_ptr<tsc_type> out_type);
 int analyze_expression(std::shared_ptr<ast_node> expression, semantics_analysis_context &context);
 
+int analyze_constant(std::shared_ptr<ast_node> constant, semantics_analysis_context &context);
+
+int check_integer_constant(std::shared_ptr<ast_node> integer_constant);
+int check_floating_constant(std::shared_ptr<ast_node> floating_constant);
+
 int analyze_assignment_expression(std::shared_ptr<ast_node> assignment_expression, semantics_analysis_context &context);
 int analyze_argument_expression_list(std::shared_ptr<ast_node> argument_expression_list,
                                      semantics_analysis_context &context);
 
-std::pair<int, std::shared_ptr<std::string>> analyze_string(std::shared_ptr<ast_node> string_node, semantics_analysis_context &context);
+int analyze_string(std::shared_ptr<ast_node> string_node, semantics_analysis_context &context, std::string &out_string);

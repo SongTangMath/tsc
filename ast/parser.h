@@ -392,7 +392,7 @@
 
 #define NODE_TYPE_STATEMENT 65
 #define NODE_TYPE_STATEMENT_SUBTYPE_LABELED_STATEMENT 1
-#define NODE_TYPE_STATEMENT_SUBTYPE_COMPOUBD_STATEMEMT 2
+#define NODE_TYPE_STATEMENT_SUBTYPE_COMPOUND_STATEMEMT 2
 #define NODE_TYPE_STATEMENT_SUBTYPE_EXPRESSION_STATEMENT 3
 #define NODE_TYPE_STATEMENT_SUBTYPE_SELECTION_STATEMENT 4
 #define NODE_TYPE_STATEMENT_SUBTYPE_ITERATION_STATEMENT 5
@@ -461,13 +461,39 @@
 #define NODE_TYPE_DECLARATION_LIST_SUBTYPE_DECLARATION 1
 #define NODE_TYPE_DECLARATION_LIST_SUBTYPE_DECLARATION_LIST_DECLARATION 2
 
+#define I_CONSTANT_SUBTYPE_HEX_DIGIT 1
+#define I_CONSTANT_SUBTYPE_DECIMAL_DIGIT 2
+#define I_CONSTANT_SUBTYPE_OCTAL_DIGIT 3
+#define I_CONSTANT_SUBTYPE_CHAR_DIGIT 4
+
+#define F_CONSTANT_SUBTYPE_INTEGER_SIGNIFICANT_PART 1
+#define F_CONSTANT_SUBTYPE_FLOATING_SIGNIFICANT_PART 2
+#define F_CONSTANT_SUBTYPE_INTEGER_DOT_SIGNIFICANT_PART 3
+#define F_CONSTANT_SUBTYPE_HEX_INTEGER_SIGNIFICANT_PART 4
+#define F_CONSTANT_SUBTYPE_HEX_FLOATING_SIGNIFICANT_PART 5
+#define F_CONSTANT_SUBTYPE_HEX_INTEGER_DOT_SIGNIFICANT_PART 6
+
 int yyparse(void);
 
 struct expression_value {
-  bool is_valid=true;
-  int int_value;
-  double double_value;
-  std::shared_ptr<std::string>  string_value;
+  bool is_valid = true;
+  std::shared_ptr<std::string> string_value;
+  //if the expression node represent a constant expression it's value holds here
+  union {
+    char char_value;
+    unsigned char unsigned_char_value;
+    short short_value;
+    unsigned short unsigned_short_value;
+    int int_value;
+    unsigned int unsigned_int_value;
+    long long_value;
+    unsigned long unsigned_long_value;
+    long long long_long_value;
+    unsigned long long unsigned_long_long_value;
+    float float_value;
+    double double_value;
+    long double long_double_value;
+  };
 };
 
 struct tsc_type {
@@ -487,8 +513,12 @@ struct tsc_type {
   // for struct union enum
   bool is_complete = true; // struct A; -> incomplete
   int type_id = -1;
-  //如果是指针则dereference后的type是underlying_type
+  //如果是指针则dereference后的type是underlying_type 数组同理
   bool is_pointer = false;
+  bool is_array = false;
+  //can be nullptr for incomplete array
+  std::shared_ptr<int> array_length;
+
   std::shared_ptr<tsc_type> underlying_type;
 };
 
@@ -545,10 +575,16 @@ struct ast_node {
   std::vector<std::shared_ptr<ast_node>> items;
   //保存terminal 否则为空
   std::shared_ptr<std::string> lexeme;
+  // for I_CONST and F_CONST
+  int lexeme_sub_type;
   //对于terminal是此token的行号
   int line_no;
 
   std::shared_ptr<tsc_symbol> symbol;
+
+  // for top translation_unit it's all sub external_declarations
+  // for top expression it's all sub assignment_expressions
+  std::vector<std::shared_ptr<ast_node>> sub_nodes;
 
   std::string get_expression();
   int get_first_terminal_line_no();
@@ -558,6 +594,12 @@ extern std::shared_ptr<ast_node> translation_unit;
 extern std::string input_file_name;
 
 std::string extract_string(std::string input);
+char escape_char(char ch);
+bool is_unsigned_suffix(const std::string &suffix);
+bool is_long_suffix(const std::string &suffix);
+bool is_long_long_suffix(const std::string &suffix);
+bool is_long_double_suffix(const std::string &suffix);
+bool is_float_suffix(const std::string &suffix);
 
 int evaluate(std::string operator_token, int left, int right);
 double evaluate(std::string operator_token, int left, double right);

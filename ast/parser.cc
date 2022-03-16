@@ -4,37 +4,36 @@
 std::shared_ptr<ast_node> translation_unit;
 std::string input_file_name;
 
-std::shared_ptr<tsc_type> global_types::primitive_type_void=std::make_shared<tsc_type>();
-std::shared_ptr<tsc_type> global_types::primitive_type_char=std::make_shared<tsc_type>();
-std::shared_ptr<tsc_type> global_types::primitive_type_unsigned_char=std::make_shared<tsc_type>();
-std::shared_ptr<tsc_type> global_types::primitive_type_short=std::make_shared<tsc_type>();
-std::shared_ptr<tsc_type> global_types::primitive_type_unsigned_short=std::make_shared<tsc_type>();
-std::shared_ptr<tsc_type> global_types::primitive_type_int=std::make_shared<tsc_type>();
-std::shared_ptr<tsc_type> global_types::primitive_type_unsigned_int=std::make_shared<tsc_type>();
-std::shared_ptr<tsc_type> global_types::primitive_type_long=std::make_shared<tsc_type>();
-std::shared_ptr<tsc_type> global_types::primitive_type_unsigned_long=std::make_shared<tsc_type>();
-std::shared_ptr<tsc_type> global_types::primitive_type_long_long=std::make_shared<tsc_type>();
-std::shared_ptr<tsc_type> global_types::primitive_type_unsigned_long_long=std::make_shared<tsc_type>();
-std::shared_ptr<tsc_type> global_types::primitive_type_float=std::make_shared<tsc_type>();
-std::shared_ptr<tsc_type> global_types::primitive_type_double=std::make_shared<tsc_type>();
-std::shared_ptr<tsc_type> global_types::primitive_type_long_double=std::make_shared<tsc_type>();
-std::shared_ptr<tsc_type> global_types::composite_type_const_char_star=std::make_shared<tsc_type>();
+std::shared_ptr<tsc_type> global_types::primitive_type_void;
+std::shared_ptr<tsc_type> global_types::primitive_type_char;
+std::shared_ptr<tsc_type> global_types::primitive_type_unsigned_char;
+std::shared_ptr<tsc_type> global_types::primitive_type_short;
+std::shared_ptr<tsc_type> global_types::primitive_type_unsigned_short;
+std::shared_ptr<tsc_type> global_types::primitive_type_int;
+std::shared_ptr<tsc_type> global_types::primitive_type_unsigned_int;
+std::shared_ptr<tsc_type> global_types::primitive_type_long;
+std::shared_ptr<tsc_type> global_types::primitive_type_unsigned_long;
+std::shared_ptr<tsc_type> global_types::primitive_type_long_long;
+std::shared_ptr<tsc_type> global_types::primitive_type_unsigned_long_long;
+std::shared_ptr<tsc_type> global_types::primitive_type_float;
+std::shared_ptr<tsc_type> global_types::primitive_type_double;
+std::shared_ptr<tsc_type> global_types::primitive_type_long_double;
+std::shared_ptr<tsc_type> global_types::composite_type_const_char_star;
 
-std::shared_ptr<tsc_type> global_types::primitive_type_const_void=std::make_shared<tsc_type>();
-std::shared_ptr<tsc_type> global_types::primitive_type_const_char=std::make_shared<tsc_type>();
-std::shared_ptr<tsc_type> global_types::primitive_type_const_unsigned_char=std::make_shared<tsc_type>();
-std::shared_ptr<tsc_type> global_types::primitive_type_const_short=std::make_shared<tsc_type>();
-std::shared_ptr<tsc_type> global_types::primitive_type_const_unsigned_short=std::make_shared<tsc_type>();
-std::shared_ptr<tsc_type> global_types::primitive_type_const_int=std::make_shared<tsc_type>();
-std::shared_ptr<tsc_type> global_types::primitive_type_const_unsigned_int=std::make_shared<tsc_type>();
-std::shared_ptr<tsc_type> global_types::primitive_type_const_long=std::make_shared<tsc_type>();
-std::shared_ptr<tsc_type> global_types::primitive_type_const_unsigned_long=std::make_shared<tsc_type>();
-std::shared_ptr<tsc_type> global_types::primitive_type_const_long_long=std::make_shared<tsc_type>();
-std::shared_ptr<tsc_type> global_types::primitive_type_const_unsigned_long_long=std::make_shared<tsc_type>();
-std::shared_ptr<tsc_type> global_types::primitive_type_const_float=std::make_shared<tsc_type>();
-std::shared_ptr<tsc_type> global_types::primitive_type_const_double=std::make_shared<tsc_type>();
-std::shared_ptr<tsc_type> global_types::primitive_type_const_long_double=std::make_shared<tsc_type>();
-
+std::shared_ptr<tsc_type> global_types::primitive_type_const_void;
+std::shared_ptr<tsc_type> global_types::primitive_type_const_char;
+std::shared_ptr<tsc_type> global_types::primitive_type_const_unsigned_char;
+std::shared_ptr<tsc_type> global_types::primitive_type_const_short;
+std::shared_ptr<tsc_type> global_types::primitive_type_const_unsigned_short;
+std::shared_ptr<tsc_type> global_types::primitive_type_const_int;
+std::shared_ptr<tsc_type> global_types::primitive_type_const_unsigned_int;
+std::shared_ptr<tsc_type> global_types::primitive_type_const_long;
+std::shared_ptr<tsc_type> global_types::primitive_type_const_unsigned_long;
+std::shared_ptr<tsc_type> global_types::primitive_type_const_long_long;
+std::shared_ptr<tsc_type> global_types::primitive_type_const_unsigned_long_long;
+std::shared_ptr<tsc_type> global_types::primitive_type_const_float;
+std::shared_ptr<tsc_type> global_types::primitive_type_const_double;
+std::shared_ptr<tsc_type> global_types::primitive_type_const_long_double;
 
 std::string ast_node::get_expression() {
   if (lexeme)
@@ -54,7 +53,9 @@ int ast_node::get_first_terminal_line_no() {
 
   return items[0]->get_first_terminal_line_no();
 }
-// \"abc\"  \"def\" -> abcdef
+// \"abc\"  \"def\" -> abcdef "abc\1234cd"->"abcS4cd"
+// "abc\94cd"; -> warning: unknown escape sequence: '\9' -> "abc94cd"
+// todo 实现数字转义字符
 std::string extract_string(std::string input) {
   std::string ret;
   bool in_quote = false;
@@ -77,30 +78,22 @@ std::string extract_string(std::string input) {
         in_quote = !in_quote;
       break;
 
-    case 't':
+    case 'a':
+        case 'b':
+        case 'f':
+        case 'v':
+        case 't':
+        case 'r':
+        case 'n':
       if (find_back_slash) {
-        ret += '\t';
+        ret += escape_char(ch);
         find_back_slash = false;
       } else {
-        ret += 't';
+        ret += ch;
       }
       break;
-    case 'r':
-      if (find_back_slash) {
-        ret += '\r';
-        find_back_slash = false;
-      } else {
-        ret += 'r';
-      }
-      break;
-    case 'n':
-      if (find_back_slash) {
-        ret += '\n';
-        find_back_slash = false;
-      } else {
-        ret += 'n';
-      }
-      break;
+
+
     default:
       if (!in_quote)
         break;
@@ -110,10 +103,52 @@ std::string extract_string(std::string input) {
   return ret;
 }
 
-std::shared_ptr<tsc_type> construct_pointer_to( std::shared_ptr<tsc_type> type){
-    std::shared_ptr<tsc_type> pointer=std::make_shared<tsc_type>();
-    pointer->is_pointer=true;
-    pointer->underlying_type=type;
-    return pointer;
+std::shared_ptr<tsc_type> construct_pointer_to(std::shared_ptr<tsc_type> type) {
+  std::shared_ptr<tsc_type> pointer = std::make_shared<tsc_type>();
+  pointer->is_pointer = true;
+  pointer->underlying_type = type;
+  return pointer;
 }
 
+bool is_unsigned_suffix(const std::string& suffix){
+    return suffix.find('u')!=std::string::npos||suffix.find('U')!=std::string::npos;
+}
+
+bool is_long_suffix(const std::string& suffix){
+    return (suffix.find('l')!=std::string::npos||suffix.find('L')!=std::string::npos)&&
+           (suffix.find("ll")==std::string::npos||suffix.find("LL")==std::string::npos);
+}
+
+bool is_long_long_suffix(const std::string& suffix){
+    return
+            suffix.find("ll")!=std::string::npos||suffix.find("LL")!=std::string::npos;
+}
+
+bool is_long_double_suffix(const std::string& suffix){
+    return suffix=="l"|| suffix=="L";
+}
+
+bool is_float_suffix(const std::string& suffix){
+    return suffix=="f"|| suffix=="F";
+}
+
+char escape_char(char ch){
+    switch (ch) {
+        case 'a':
+            return '\a';
+        case 'b':
+            return '\b';
+        case 'f':
+            return '\f';
+        case 'v':
+            return '\v';
+        case 't':
+            return '\t';
+        case 'r':
+            return '\r';
+        case 'n':
+            return '\n';
+        default:
+            return ch;
+    }
+}

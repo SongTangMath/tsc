@@ -2433,7 +2433,7 @@ statement
 	{
         ast_node node;
         node.node_type = NODE_TYPE_STATEMENT;
-        node.node_sub_type = NODE_TYPE_STATEMENT_SUBTYPE_COMPOUBD_STATEMEMT;
+        node.node_sub_type = NODE_TYPE_STATEMENT_SUBTYPE_COMPOUND_STATEMEMT;
         node.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //compound_statement
         $$=node;
     }
