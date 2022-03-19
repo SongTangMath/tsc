@@ -7,6 +7,7 @@ enum {
   PRIMITIVE_TYPE_UNSIGNED_CHAR,
   PRIMITIVE_TYPE_SHORT,
   PRIMITIVE_TYPE_UNSIGNED_SHORT,
+  PRIMITIVE_TYPE_ENUM,
   PRIMITIVE_TYPE_INT,
   PRIMITIVE_TYPE_UNSIGNED_INT,
   PRIMITIVE_TYPE_LONG,
@@ -17,7 +18,8 @@ enum {
   PRIMITIVE_TYPE_DOUBLE,
   PRIMITIVE_TYPE_LONG_DOUBLE,
   RECORD_TYPE_STRUCT_OR_UNION,
-  RECORD_TYPE_ENUM
+  SCALAR_TYPE_POINTER,
+  SCALAR_TYPE_ARRAY
 };
 
 enum {
@@ -27,6 +29,29 @@ enum {
   SYMBOL_TYPE_ICONSTANT,
   SYMBOL_TYPE_FCONSTANT,
   SYMBOL_TYPE_ENUMERATION_CONSTANT
+};
+
+enum {
+  BINARY_OPERATOR_ADD,
+  BINARY_OPERATOR_SUB,
+  BINARY_OPERATOR_MUL,
+  BINARY_OPERATOR_DIV,
+  BINARY_OPERATOR_MOD,
+  BINARY_OPERATOR_EQ_OP,
+  BINARY_OPERATOR_NE_OP,
+
+  BINARY_OPERATOR_LESS_THAN,
+  BINARY_OPERATOR_GREATER_THAN,
+
+  BINARY_OPERATOR_LESS_THAN_OR_EQUAL,
+  BINARY_OPERATOR_GREATER_THAN_OR_EQUAL,
+  BINARY_OPERATOR_AND,
+  BINARY_OPERATOR_OR,
+  BINARY_OPERATOR_BITAND,
+  BINARY_OPERATOR_BITOR,
+  BINARY_OPERATOR_BITXOR,
+  BINARY_OPERATOR_LEFT_SHIFT,
+  BINARY_OPERATOR_RIGHT_SHIFT
 };
 
 void setup_type_system();
@@ -117,4 +142,11 @@ int analyze_assignment_expression(std::shared_ptr<ast_node> assignment_expressio
 int analyze_argument_expression_list(std::shared_ptr<ast_node> argument_expression_list,
                                      semantics_analysis_context &context);
 
-int analyze_string(std::shared_ptr<ast_node> string_node, semantics_analysis_context &context, std::string &out_string);
+int analyze_string(std::shared_ptr<ast_node> string_node, semantics_analysis_context &context);
+
+bool is_integer_constant(const std::shared_ptr<ast_node> &node);
+bool is_floating_constant(const std::shared_ptr<ast_node> &node);
+bool is_constant(const std::shared_ptr<ast_node> &node);
+
+int construct_binary_expression_symbol(std::shared_ptr<ast_node> parent, int binary_operator,
+                                       std::shared_ptr<ast_node> left, std::shared_ptr<ast_node> right);

@@ -488,11 +488,12 @@ struct expression_value {
     unsigned int unsigned_int_value;
     long long_value;
     unsigned long unsigned_long_value;
-    long long long_long_value;
+    long long long_long_value=0;
     unsigned long long unsigned_long_long_value;
     float float_value;
     double double_value;
     long double long_double_value;
+    size_t size_value;
   };
 };
 
@@ -513,18 +514,18 @@ struct tsc_type {
   // for struct union enum
   bool is_complete = true; // struct A; -> incomplete
   int type_id = -1;
-  //如果是指针则dereference后的type是underlying_type 数组同理
-  bool is_pointer = false;
-  bool is_array = false;
-  //can be nullptr for incomplete array
-  std::shared_ptr<int> array_length;
 
+  size_t type_size;
+  //can be nullptr for incomplete array
+  std::shared_ptr<size_t> array_length;
+  //如果是指针则dereference后的type是underlying_type 数组同理
   std::shared_ptr<tsc_type> underlying_type;
 };
 
 struct tsc_symbol {
 
   int symbol_type;
+  bool is_left_value;
   std::shared_ptr<std::string> identifier;
   std::shared_ptr<tsc_type> type;
   std::shared_ptr<expression_value> value;
@@ -560,9 +561,9 @@ struct global_types {
   static std::shared_ptr<tsc_type> primitive_type_const_float;
   static std::shared_ptr<tsc_type> primitive_type_const_double;
   static std::shared_ptr<tsc_type> primitive_type_const_long_double;
+//sizeof表达式的结果类型为size_t
+    static std::shared_ptr<tsc_type>  primitive_type_sizeof;
 
-  // const char* type for string literal
-  static std::shared_ptr<tsc_type> composite_type_const_char_star;
 };
 
 std::shared_ptr<tsc_type> construct_pointer_to(std::shared_ptr<tsc_type> type);

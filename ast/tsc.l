@@ -44,6 +44,7 @@ static int check_type(void);
 %%
 "/*"                                    { comment(); }
 "//".*                                    { /* consume //-comment */ }
+"#".*                                    { /* ignore preprocessor directives */ }
 
 "auto"					{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return(AUTO); }
 "break"					{ yylval.line_no=yyget_lineno(); yylval.lexeme=std::make_shared<std::string>(yytext); return(BREAK); }

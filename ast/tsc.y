@@ -13,7 +13,6 @@ void yyerror(const char *s)
 }  
 %}
 
-
 %token	IDENTIFIER I_CONSTANT F_CONSTANT STRING_LITERAL FUNC_NAME SIZEOF
 %token	PTR_OP INC_OP DEC_OP LEFT_SHIFT RIGHT_SHIFT LE_OP GE_OP EQ_OP NE_OP
 %token	AND_OP OR_OP MUL_ASSIGN DIV_ASSIGN MOD_ASSIGN ADD_ASSIGN
@@ -1267,16 +1266,24 @@ type_specifier
         node.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //enum_specifier
         $$=node;
     }
-	| TYPEDEF_NAME	
+	| TYPEDEF_NAME
 	{
-		/* after it has been defined as such */
+	/* 没有符号表,词法分析器无法返回 TYPEDEF_NAME 参考 https://github.com/antlr/grammars-v4/blob/master/c/C.g4
+	多加一层.定义typedef_name 为identifier 注意我们的 declaration_specifiers 中允许有多个 type_specifier 以处理long int这样的type_specifier
+	但是type_specifier可以推导出identifier会造成另一个问题:int a;中的a也被认为是 declaration_specifiers
+	这里会造成很多奇怪问题.如果无法正确判断是否是TYPEDEF_NAME 会导致无法递归typedef即typedef int a; typedef a b;语法错误
+	*/
+
         ast_node node;
         node.node_type = NODE_TYPE_TYPE_SPECIFIER;
         node.node_sub_type = NODE_TYPE_TYPE_SPECIFIER_SUBTYPE_TYPEDEF_NAME;
         node.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //TYPEDEF_NAME
         $$=node;
-    }	
+    }
 	;
+
+typedef_name:
+	IDENTIFIER
 
 struct_or_union_specifier
 	: struct_or_union LEFT_BRACE struct_declaration_list RIGHT_BRACE

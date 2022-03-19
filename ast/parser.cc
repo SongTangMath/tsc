@@ -18,7 +18,6 @@ std::shared_ptr<tsc_type> global_types::primitive_type_unsigned_long_long;
 std::shared_ptr<tsc_type> global_types::primitive_type_float;
 std::shared_ptr<tsc_type> global_types::primitive_type_double;
 std::shared_ptr<tsc_type> global_types::primitive_type_long_double;
-std::shared_ptr<tsc_type> global_types::composite_type_const_char_star;
 
 std::shared_ptr<tsc_type> global_types::primitive_type_const_void;
 std::shared_ptr<tsc_type> global_types::primitive_type_const_char;
@@ -34,6 +33,9 @@ std::shared_ptr<tsc_type> global_types::primitive_type_const_unsigned_long_long;
 std::shared_ptr<tsc_type> global_types::primitive_type_const_float;
 std::shared_ptr<tsc_type> global_types::primitive_type_const_double;
 std::shared_ptr<tsc_type> global_types::primitive_type_const_long_double;
+
+std::shared_ptr<tsc_type> global_types::primitive_type_sizeof;
+
 
 std::string ast_node::get_expression() {
   if (lexeme)
@@ -103,12 +105,7 @@ std::string extract_string(std::string input) {
   return ret;
 }
 
-std::shared_ptr<tsc_type> construct_pointer_to(std::shared_ptr<tsc_type> type) {
-  std::shared_ptr<tsc_type> pointer = std::make_shared<tsc_type>();
-  pointer->is_pointer = true;
-  pointer->underlying_type = type;
-  return pointer;
-}
+
 
 bool is_unsigned_suffix(const std::string& suffix){
     return suffix.find('u')!=std::string::npos||suffix.find('U')!=std::string::npos;
