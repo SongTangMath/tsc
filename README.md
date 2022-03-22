@@ -1,10 +1,7 @@
 # tsc
 A toy C89 compiler
 支持部分C99规范如for语句内的变量声明
-不支持VLA 不支持递归的typedef
-
-typedef int a;
-typedef a b;
+不支持VLA 暂不支持typedef
 
 ## 关于printf
 %d %i 十进制打印signed int
@@ -348,3 +345,9 @@ return 0;
 }
 }
 ```
+
+## 杂项
+
+统计代码行数
+
+git ls-files | xargs wc -l

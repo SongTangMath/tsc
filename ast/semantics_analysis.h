@@ -70,36 +70,31 @@ struct semantics_analysis_context {
 };
 
 int semantics_analysis(std::shared_ptr<ast_node> translation_unit);
-int analyze_declaration(std::shared_ptr<ast_node> declaration, semantics_analysis_context &context, bool is_global);
+int analyze_declaration(std::shared_ptr<ast_node> declaration, semantics_analysis_context &context, std::shared_ptr<tsc_symbol>& symbol);
 int analyze_function_definition(std::shared_ptr<ast_node> function_definition, semantics_analysis_context &context);
 int analyze_declaration_specifiers(std::shared_ptr<ast_node> declaration_specifiers,
-                                   semantics_analysis_context &context, std::shared_ptr<tsc_type> type, bool is_global);
-int check_primitive_type_specifiers(std::vector<std::shared_ptr<ast_node>> &type_specifiers, bool is_global,
-                                    std::shared_ptr<tsc_type> type);
+                                   semantics_analysis_context &context, std::shared_ptr<tsc_symbol>& symbol);
+int check_type_specifiers(std::vector<std::shared_ptr<ast_node>> &type_specifiers, semantics_analysis_context &context, std::shared_ptr<tsc_symbol> &symbol);
 
-int check_type_qualifiers(std::vector<std::shared_ptr<ast_node>> &type_qualifiers, bool is_global,
-                          std::shared_ptr<tsc_type> type);
+int check_type_qualifiers(std::vector<std::shared_ptr<ast_node>> &type_qualifiers,semantics_analysis_context &context,  std::shared_ptr<tsc_symbol> &symbol);
 
-int check_storage_class_specifiers(std::vector<std::shared_ptr<ast_node>> &storage_class_specifiers, bool is_global,
-                                   std::shared_ptr<tsc_type> type);
+int check_storage_class_specifiers(std::vector<std::shared_ptr<ast_node>> &storage_class_specifiers,semantics_analysis_context &context,  std::shared_ptr<tsc_symbol> &symbol);
 
-int check_function_specifiers(std::vector<std::shared_ptr<ast_node>> &function_specifiers, bool is_global,
-                              std::shared_ptr<tsc_type> type);
+int check_function_specifiers(std::vector<std::shared_ptr<ast_node>> &function_specifiers,   std::shared_ptr<tsc_symbol> &symbol);
 
 int analyze_enum_specifier(std::shared_ptr<ast_node> enum_specifier, semantics_analysis_context &context,
-                           std::shared_ptr<tsc_type> type, bool is_global);
+                           std::shared_ptr<tsc_symbol> &symbol);
 int analyze_struct_or_union_specifier(std::shared_ptr<ast_node> struct_or_union_specifier,
-                                      semantics_analysis_context &context, std::shared_ptr<tsc_type> type,
-                                      bool is_global);
+                                      semantics_analysis_context &context,   std::shared_ptr<tsc_symbol> &symbol);
 
 //  如果有2个struct_union_enum同名,它们是否一致.
 //  例如type1是声明struct A; type2是定义struct A{...};则一致.如果type2是个union那么不一致
 bool check_type_compatibility(std::shared_ptr<tsc_type> type1, std::shared_ptr<tsc_type> type2);
 
 int analyze_enumerator_list(std::shared_ptr<ast_node> enumerator_list, semantics_analysis_context &context,
-                            std::shared_ptr<tsc_type> type, bool is_global);
+                            std::shared_ptr<tsc_symbol> &symbol);
 int analyze_enumerator(std::shared_ptr<ast_node> enumerator, semantics_analysis_context &context,
-                       std::shared_ptr<tsc_type> type, bool is_global, int next_value,
+                    int next_value,
                        int &calculated_enumeration_constant_value);
 
 int analyze_constant_expression(std::shared_ptr<ast_node> constant_expression, semantics_analysis_context &context);
@@ -127,10 +122,10 @@ int analyze_cast_expression(std::shared_ptr<ast_node> cast_expression, semantics
 
 int analyze_unary_expression(std::shared_ptr<ast_node> unary_expression, semantics_analysis_context &context);
 int analyze_postfix_expression(std::shared_ptr<ast_node> postfix_expression, semantics_analysis_context &context);
-int analyze_primary_expression(std::shared_ptr<ast_node> primary_expression, semantics_analysis_context &context);
+int analyze_primary_expression(std::shared_ptr<ast_node> primary_expression, semantics_analysis_context &context,int symbol_type_to_find);
 
 int analyze_type_name(std::shared_ptr<ast_node> type_name, semantics_analysis_context &context,
-                      std::shared_ptr<tsc_type> out_type);
+                      std::shared_ptr<tsc_type>& out_type);
 int analyze_expression(std::shared_ptr<ast_node> expression, semantics_analysis_context &context);
 
 int analyze_constant(std::shared_ptr<ast_node> constant, semantics_analysis_context &context);
@@ -147,6 +142,13 @@ int analyze_string(std::shared_ptr<ast_node> string_node, semantics_analysis_con
 bool is_integer_constant(const std::shared_ptr<ast_node> &node);
 bool is_floating_constant(const std::shared_ptr<ast_node> &node);
 bool is_constant(const std::shared_ptr<ast_node> &node);
+std::shared_ptr<tsc_symbol> lookup_variable_symbol(std::shared_ptr<symbol_table_node> symbol_table_node,const std::string& symbol_identifier,bool search_outer);
+std::shared_ptr<tsc_symbol> lookup_function_symbol(std::shared_ptr<symbol_table_node> symbol_table_node,const std::string& symbol_identifier, bool search_outer);
+std::shared_ptr<tsc_type> lookup_type(std::shared_ptr<symbol_table_node> symbol_table_node,const std::string& type_name, bool search_outer);
+
 
 int construct_binary_expression_symbol(std::shared_ptr<ast_node> parent, int binary_operator,
                                        std::shared_ptr<ast_node> left, std::shared_ptr<ast_node> right);
+
+int analyze_init_declarator_list(std::shared_ptr<ast_node> init_declarator_list, semantics_analysis_context &context);
+int analyze_specifier_qualifier_list(std::shared_ptr<ast_node> specifier_qualifier_list, semantics_analysis_context &context,std::shared_ptr<tsc_type>& out_type);

@@ -942,7 +942,7 @@ declaration
 		node.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //SEMI_COLON
         $$=node;
     }
-	| declaration_specifiers init_declarator_list SEMI_COLON
+	| declaration_specifiers  SEMI_COLON
 	{
         ast_node node;
         node.node_type = NODE_TYPE_DECLARATION;
@@ -1050,7 +1050,7 @@ declaration_specifiers
     }
 	;
 
-init_declarator_list
+init_declarator_listinit_declarator_list
 	: init_declarator
 	{
         ast_node node;

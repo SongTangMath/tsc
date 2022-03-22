@@ -502,12 +502,8 @@ struct tsc_type {
   bool restrict_type_qualifier_set = false;
   bool volatile_type_qualifier_set = false;
 
-  bool is_typedef = false;
-  bool is_extern = false;
-  bool is_static = false;
-  bool is_register = false;
-
-  // for functions
+    std::shared_ptr<std::string>name;
+    // for functions
   bool is_inline = false;
   bool is_noreturn = false;
 
@@ -525,7 +521,12 @@ struct tsc_type {
 struct tsc_symbol {
 
   int symbol_type;
-  bool is_left_value;
+    bool is_typedef = false;
+    bool is_extern = false;
+    bool is_static = false;
+    bool is_register = false;
+
+    bool is_left_value;
   std::shared_ptr<std::string> identifier;
   std::shared_ptr<tsc_type> type;
   std::shared_ptr<expression_value> value;
