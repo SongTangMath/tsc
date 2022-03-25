@@ -488,7 +488,7 @@ struct expression_value {
     unsigned int unsigned_int_value;
     long long_value;
     unsigned long unsigned_long_value;
-    long long long_long_value=0;
+    long long long_long_value = 0;
     unsigned long long unsigned_long_long_value;
     float float_value;
     double double_value;
@@ -502,8 +502,8 @@ struct tsc_type {
   bool restrict_type_qualifier_set = false;
   bool volatile_type_qualifier_set = false;
 
-    std::shared_ptr<std::string>name;
-    // for functions
+  std::shared_ptr<std::string> name;
+  // for functions
   bool is_inline = false;
   bool is_noreturn = false;
 
@@ -517,19 +517,25 @@ struct tsc_type {
   //如果是指针则dereference后的type是underlying_type 数组同理
   std::shared_ptr<tsc_type> underlying_type;
 };
-
+struct tsc_memory_location {};
 struct tsc_symbol {
 
   int symbol_type;
-    bool is_typedef = false;
-    bool is_extern = false;
-    bool is_static = false;
-    bool is_register = false;
+  bool is_typedef = false;
+  bool is_extern = false;
+  bool is_static = false;
+  bool is_register = false;
 
-    bool is_left_value;
+  bool is_left_value;
   std::shared_ptr<std::string> identifier;
+  //if this field is present, we can use & operator to get symbol's memory location
+  std::shared_ptr<tsc_memory_location> memory_location;
   std::shared_ptr<tsc_type> type;
   std::shared_ptr<expression_value> value;
+
+  int operator_id;
+  std::vector<std::shared_ptr<tsc_symbol>>operands;
+
 };
 
 struct global_types {
@@ -562,9 +568,8 @@ struct global_types {
   static std::shared_ptr<tsc_type> primitive_type_const_float;
   static std::shared_ptr<tsc_type> primitive_type_const_double;
   static std::shared_ptr<tsc_type> primitive_type_const_long_double;
-//sizeof表达式的结果类型为size_t
-    static std::shared_ptr<tsc_type>  primitive_type_sizeof;
-
+  //sizeof表达式的结果类型为size_t
+  static std::shared_ptr<tsc_type> primitive_type_sizeof;
 };
 
 std::shared_ptr<tsc_type> construct_pointer_to(std::shared_ptr<tsc_type> type);

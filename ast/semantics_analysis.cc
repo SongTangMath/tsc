@@ -1578,6 +1578,7 @@ int analyze_cast_expression(std::shared_ptr<ast_node> cast_expression, semantics
     cast_expression->symbol = std::make_shared<tsc_symbol>();
     // todo 对 const expression 强转还是 const expression 如 (int)1.0f
     // struct_union 不能强转为primitive type. 反之primitive type也不能转为 struct_union
+    // 不能直接将double转为指针类型(gcc)
     cast_expression->symbol->symbol_type = SYMBOL_TYPE_TEMPORARY_VARIABLE;
     cast_expression->symbol->type = type_out;
 
@@ -1620,6 +1621,12 @@ int analyze_unary_expression(std::shared_ptr<ast_node> unary_expression, semanti
     if (semantics_analysis_result)
       return semantics_analysis_result;
 
+    if (!next_unary_expression->symbol->is_left_value) {
+      printf("%s:%d error:\n\tlvalue expected in unary_expression\n", input_file_name.c_str(),
+             unary_expression->get_first_terminal_line_no());
+      semantics_analysis_result = 1;
+      return semantics_analysis_result;
+    }
     unary_expression->symbol = std::make_shared<tsc_symbol>();
     unary_expression->symbol->symbol_type = SYMBOL_TYPE_TEMPORARY_VARIABLE;
     unary_expression->symbol->type = next_unary_expression->symbol->type;
@@ -1628,13 +1635,118 @@ int analyze_unary_expression(std::shared_ptr<ast_node> unary_expression, semanti
 
   break;
   case NODE_TYPE_UNARY_EXPRESSION_SUBTYPE_UNARY_OPERATOR_CAST_EXPRESSION: {
+    std::shared_ptr<ast_node> unary_operator = unary_expression->items[0];
     std::shared_ptr<ast_node> cast_expression = unary_expression->items[1];
 
     semantics_analysis_result = analyze_cast_expression(cast_expression, context);
     if (semantics_analysis_result)
       return semantics_analysis_result;
+
+    unary_expression->symbol = std::make_shared<tsc_symbol>();
+    unary_expression->symbol->operands.push_back(cast_expression->symbol);
+    unary_expression->symbol->is_left_value = false;
     // unary operator包括 MUL(指针deference) BITAND(取地址)等.类型根据 unary operator决定
     // 字符串字面量可以取地址 char (*p)[4]=&"abc";
+    switch (unary_operator->node_sub_type) {
+    case NODE_TYPE_UNARY_OPERATOR_SUBTYPE_BITAND: {
+      // '&' 取地址.结果type是pointer to type of cast_expression
+      unary_expression->symbol->operator_id = UNARY_OPERATOR_BIT_AND;
+      unary_expression->symbol->symbol_type = SYMBOL_TYPE_TEMPORARY_VARIABLE;
+      if (cast_expression->symbol->memory_location) {
+        printf("%s:%d error:\n\tcast_expression does not have a memory location in unary_expression\n",
+               input_file_name.c_str(), unary_expression->get_first_terminal_line_no());
+        semantics_analysis_result = 1;
+        return semantics_analysis_result;
+      }
+
+      unary_expression->symbol->type = construct_pointer_to(cast_expression->symbol->type);
+    }
+
+    break;
+    case NODE_TYPE_UNARY_OPERATOR_SUBTYPE_MUL: {
+      // '*' deference.结果type是type of cast_expression 的underlying type
+      // void* p; p[2]; ->OK. warning  dereferencing 'void *' pointer.
+      // char ch=p[2] error: void value not ignored as it ought to be
+      unary_expression->symbol->operator_id = UNARY_OPERATOR_MUL;
+      unary_expression->symbol->symbol_type = SYMBOL_TYPE_TEMPORARY_VARIABLE;
+      if (is_array_or_pointer(cast_expression)) {
+        printf("%s:%d error:\n\tcast_expression should be array or pointer in unary_expression\n",
+               input_file_name.c_str(), unary_expression->get_first_terminal_line_no());
+        semantics_analysis_result = 1;
+        return semantics_analysis_result;
+      }
+
+      if (cast_expression->symbol->type->underlying_type->type_id == PRIMITIVE_TYPE_VOID) {
+        printf("%s:%d warning:\n\tdereferencing 'void *' pointer in unary_expression\n", input_file_name.c_str(),
+               unary_expression->get_first_terminal_line_no());
+      }
+
+      unary_expression->symbol->type = cast_expression->symbol->type->underlying_type;
+    } break;
+    case NODE_TYPE_UNARY_OPERATOR_SUBTYPE_ADD: {
+      // '+'算数取正号.需要类型是算数类型(不能是struct union array pointer).
+      // 注意这个operator作用后就不再是lvalue所以这里不能直接令unary_expression->symbol=cast_expression->symbol
+
+      if (!is_integer_or_floating_number(cast_expression)) {
+        printf("%s:%d error:\n\tcast_expression should be integer or floating_number in unary_expression\n",
+               input_file_name.c_str(), unary_expression->get_first_terminal_line_no());
+        semantics_analysis_result = 1;
+        return semantics_analysis_result;
+      }
+      semantics_analysis_result =
+          construct_unary_expression_symbol(unary_expression, UNARY_OPERATOR_ADD, cast_expression);
+      if (semantics_analysis_result)
+        return semantics_analysis_result;
+    } break;
+    case NODE_TYPE_UNARY_OPERATOR_SUBTYPE_SUB: {
+      // '-'算数取负.需要类型是算数类型,同时要处理constant expression取负的问题
+      unary_expression->symbol->operator_id = UNARY_OPERATOR_SUB;
+
+      if (!is_integer_or_floating_number(cast_expression)) {
+        printf("%s:%d error:\n\tcast_expression should be integer or floating_number in unary_expression\n",
+               input_file_name.c_str(), unary_expression->get_first_terminal_line_no());
+        semantics_analysis_result = 1;
+        return semantics_analysis_result;
+      }
+
+      semantics_analysis_result =
+          construct_unary_expression_symbol(unary_expression, UNARY_OPERATOR_SUB, cast_expression);
+      if (semantics_analysis_result)
+        return semantics_analysis_result;
+    } break;
+    case NODE_TYPE_UNARY_OPERATOR_SUBTYPE_BITNOT: {
+      // '~'按位取反.需要类型是整数类型
+      unary_expression->symbol->operator_id = UNARY_OPERATOR_BITNOT;
+
+      if (!is_integer(cast_expression)) {
+        printf("%s:%d error:\n\tcast_expression should be integer in unary_expression\n", input_file_name.c_str(),
+               unary_expression->get_first_terminal_line_no());
+        semantics_analysis_result = 1;
+        return semantics_analysis_result;
+      }
+
+      semantics_analysis_result =
+          construct_unary_expression_symbol(unary_expression, UNARY_OPERATOR_BITNOT, cast_expression);
+      if (semantics_analysis_result)
+        return semantics_analysis_result;
+    } break;
+    case NODE_TYPE_UNARY_OPERATOR_SUBTYPE_OPERATOR_NOT: {
+      // '!'逻辑not.需要类型是算数类型
+      unary_expression->symbol->operator_id = UNARY_OPERATOR_NOT;
+
+      if (!is_integer_or_floating_number(cast_expression)) {
+        printf("%s:%d error:\n\tcast_expression should be integer or floating_number in unary_expression\n",
+               input_file_name.c_str(), unary_expression->get_first_terminal_line_no());
+        semantics_analysis_result = 1;
+        return semantics_analysis_result;
+      }
+
+      semantics_analysis_result =
+          construct_unary_expression_symbol(unary_expression, UNARY_OPERATOR_NOT, cast_expression);
+      if (semantics_analysis_result)
+        return semantics_analysis_result;
+    } break;
+    }
   }
 
   break;
@@ -1803,6 +1915,9 @@ int analyze_primary_expression(std::shared_ptr<ast_node> primary_expression, sem
         return 1;
       }
       primary_expression->symbol = symbol;
+      if (!is_constant(primary_expression) && !primary_expression->symbol->memory_location)
+        primary_expression->symbol->memory_location = std::make_shared<tsc_memory_location>();
+
     } break;
     case SYMBOL_TYPE_FUNCTION: {
       std::shared_ptr<tsc_symbol> symbol =
@@ -1971,6 +2086,7 @@ int analyze_string(std::shared_ptr<ast_node> string_node, semantics_analysis_con
   switch (string_node->node_sub_type) {
   case NODE_TYPE_STRING_SUBTYPE_STRING_LITERAL:
     *string_node->symbol->value->string_value = extract_string(*string_node->items[0]->lexeme);
+    string_node->symbol->memory_location = std::make_shared<tsc_memory_location>();
     break;
   case NODE_TYPE_STRING_SUBTYPE_FUNC_NAME:
     printf("%s:%d error:\n\tunsupported C99 '__func__' in string\n", input_file_name.c_str(),
@@ -2145,8 +2261,21 @@ bool is_floating_constant(const std::shared_ptr<ast_node> &node) {
 }
 
 bool is_constant(const std::shared_ptr<ast_node> &node) {
-  //todo string literal
+  //注意不包括string literal.字符串字面量有内存地址,需要特殊处理
   return is_integer_constant(node) || is_floating_constant(node);
+}
+bool is_array_or_pointer(const std::shared_ptr<ast_node> &node) {
+  return node->symbol->type->type_id == SCALAR_TYPE_ARRAY || node->symbol->type->type_id == SCALAR_TYPE_POINTER;
+}
+
+bool is_integer_or_floating_number(const std::shared_ptr<ast_node> &node) {
+  return PRIMITIVE_TYPE_CHAR <= node->symbol->type->type_id &&
+         node->symbol->type->type_id <= PRIMITIVE_TYPE_LONG_DOUBLE;
+}
+
+bool is_integer(const std::shared_ptr<ast_node> &node) {
+  return PRIMITIVE_TYPE_CHAR <= node->symbol->type->type_id &&
+         node->symbol->type->type_id <= PRIMITIVE_TYPE_UNSIGNED_LONG_LONG;
 }
 
 //根据左右子表达式类型以及运算符表达式进行校验.如果是常量表达式则会求值
@@ -2154,6 +2283,9 @@ int construct_binary_expression_symbol(std::shared_ptr<ast_node> parent, int bin
                                        std::shared_ptr<ast_node> left, std::shared_ptr<ast_node> right) {
   std::shared_ptr<tsc_symbol> symbol = std::make_shared<tsc_symbol>();
   parent->symbol = symbol;
+  parent->symbol->operator_id = binary_operator;
+  parent->symbol->operands.push_back(left->symbol);
+  parent->symbol->operands.push_back(right->symbol);
   symbol->value = std::make_shared<expression_value>();
 
   symbol->is_left_value = false;
@@ -2185,9 +2317,7 @@ int construct_binary_expression_symbol(std::shared_ptr<ast_node> parent, int bin
   //如果left right都是数值型(包括enum)则结果也是数值型且type_id是left right中type_id较大那个.
   //如果left right较大的是enum结果处理为int.另外如果运算符是&&,||,>,>=,<,<=,==,!=结果类型为int
   int result_type_id;
-  if (PRIMITIVE_TYPE_CHAR <= left->symbol->type->type_id && left->symbol->type->type_id <= PRIMITIVE_TYPE_LONG_DOUBLE &&
-      PRIMITIVE_TYPE_CHAR <= right->symbol->type->type_id &&
-      right->symbol->type->type_id <= PRIMITIVE_TYPE_LONG_DOUBLE) {
+  if (is_constant(left) && is_constant(right)) {
     result_type_id = std::max(left->symbol->type->type_id, right->symbol->type->type_id);
 
     switch (binary_operator) {
@@ -2276,15 +2406,16 @@ int construct_binary_expression_symbol(std::shared_ptr<ast_node> parent, int bin
     }
   }
 
-  // 左右都是整型.对于大小比较的4个运算符不能直接提升为unsigned long long来进行比较.
-  // 如果较大类型是有符号型应该提升为long long.
-  // todo 实际上不能直接取union中的long long value(可能把负值int转为正值long long)这里要正确处理所有类型的语义很麻烦
+  // todo 实际上不能直接取union中的long long value(可能把负值int转为正值long long)另外有符号除法和无符号除法不是一个指令
   // 其它运算可以提升为unsigned long long
   // 数值强转.unsigned转为更高位数的signed类型则前面填0. signed转为更高位数signed则符号位移到最前面其它不动.移位规则同理.
   // 如果移位操作的right操作数是负的,结果与这个负数的除去符号位的部分有关,比较复杂. 例如char ch=0x10;ch<<-1结果还是0x10
-  // 0x10<<-1结果是0x8.总结就是设left有k位,则位移的位数是将right的低k位视为一个unsigned的值.
+  // 0x10<<-1结果是0x8.
   // char有8位.-1作为int所有32位都是1.低8位视为unsigned char结果为127.也就是char型左移-1等价于左移127.
   // 我们可以验证char型左移-128或者-2147483648总是不变(低8位全是0)所以移位的时候right用union中的signed还是unsigned值并没有影响
+  // 在gcc上如果移位运算的right操作数为负的常量或者大于left的位数(例如left是long long则right>=64)会给warning.另外实际上right操作数只有低8位有效
+  // 相关指令为shl(等价于sal)系列.如sall(left操作数为32位的时候是l.对应的后缀有bwlq不过似乎测试发现left是32位int或以下的时候都生成sall)
+  // right操作数总是位于CL寄存器(RCX的低8位)
   if (is_integer_constant(left) && is_integer_constant(right)) {
     symbol->symbol_type = SYMBOL_TYPE_ICONSTANT;
     switch (binary_operator) {
@@ -2322,20 +2453,16 @@ int construct_binary_expression_symbol(std::shared_ptr<ast_node> parent, int bin
       symbol->value->long_long_value = left->symbol->value->long_long_value <= right->symbol->value->long_long_value;
       break;
     case BINARY_OPERATOR_AND:
-      symbol->value->unsigned_long_long_value =
-          left->symbol->value->long_long_value && right->symbol->value->long_long_value;
+      symbol->value->long_long_value = left->symbol->value->long_long_value && right->symbol->value->long_long_value;
       break;
     case BINARY_OPERATOR_OR:
-      symbol->value->unsigned_long_long_value =
-          left->symbol->value->long_long_value || right->symbol->value->long_long_value;
+      symbol->value->long_long_value = left->symbol->value->long_long_value || right->symbol->value->long_long_value;
       break;
     case BINARY_OPERATOR_BITAND:
-      symbol->value->unsigned_long_long_value =
-          left->symbol->value->long_long_value & right->symbol->value->long_long_value;
+      symbol->value->long_long_value = left->symbol->value->long_long_value & right->symbol->value->long_long_value;
       break;
     case BINARY_OPERATOR_BITOR:
-      symbol->value->unsigned_long_long_value =
-          left->symbol->value->long_long_value | right->symbol->value->long_long_value;
+      symbol->value->long_long_value = left->symbol->value->long_long_value | right->symbol->value->long_long_value;
       break;
     case BINARY_OPERATOR_BITXOR:
       symbol->value->long_long_value = left->symbol->value->long_long_value ^ right->symbol->value->long_long_value;
@@ -2348,14 +2475,68 @@ int construct_binary_expression_symbol(std::shared_ptr<ast_node> parent, int bin
       break;
     default:
       printf("should not reach here %s:%d\n", __FILE__, __LINE__);
+      return 1;
     }
   }
 
-  // todo 浮点型运算,指针,数组运算的校验.
+  // todo 浮点型运算(包括整数与浮点数运算),指针,数组运算的校验.
   // gcc & clang: void*p; p+1; ->OK. offset is 1
 
   return 0;
 }
+
+int construct_unary_expression_symbol(std::shared_ptr<ast_node> parent, int unary_operator,
+                                      std::shared_ptr<ast_node> operand) {
+  //先置为临时变量.如果发现是 constant expression 再进行修改
+  parent->symbol->symbol_type = SYMBOL_TYPE_TEMPORARY_VARIABLE;
+  parent->symbol->type = operand->symbol->type;
+  parent->symbol->value = std::make_shared<expression_value>();
+
+  if (is_integer_constant(operand)) {
+    parent->symbol->symbol_type = SYMBOL_TYPE_ICONSTANT;
+    switch (unary_operator) {
+
+    case UNARY_OPERATOR_ADD:
+      parent->symbol->value = operand->symbol->value;
+      break;
+    case UNARY_OPERATOR_SUB:
+      parent->symbol->value->long_long_value = -operand->symbol->value->long_long_value;
+      break;
+    case UNARY_OPERATOR_BITNOT:
+      parent->symbol->value->long_long_value = ~operand->symbol->value->long_long_value;
+      break;
+    case UNARY_OPERATOR_NOT:
+      parent->symbol->type = global_types::primitive_type_int;
+      parent->symbol->value->int_value = !operand->symbol->value->long_long_value;
+      break;
+    default:
+      printf("should not reach here %s:%d\n", __FILE__, __LINE__);
+      return 1;
+    }
+  } else if (is_floating_constant(operand)) {
+    parent->symbol->symbol_type = SYMBOL_TYPE_FCONSTANT;
+    switch (unary_operator) {
+
+    case UNARY_OPERATOR_ADD:
+      parent->symbol->value = operand->symbol->value;
+      break;
+    case UNARY_OPERATOR_SUB:
+      parent->symbol->value->double_value = -operand->symbol->value->double_value;
+      break;
+
+    case UNARY_OPERATOR_NOT:
+      parent->symbol->type = global_types::primitive_type_int;
+      parent->symbol->value->int_value = !operand->symbol->value->double_value;
+      break;
+    default:
+      printf("should not reach here %s:%d\n", __FILE__, __LINE__);
+      return 1;
+    }
+  }
+
+  return 0;
+}
+
 /*
 init_declarator_list
 	: init_declarator

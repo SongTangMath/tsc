@@ -292,7 +292,7 @@ mac上可以通过 brew install llvm 安装
 
 假设test.cpp为
 ```
-#include \<stdio.h\>
+#include <stdio.h>
 int main() {
   printf("hello world\n");
   return 0;
@@ -345,6 +345,82 @@ return 0;
 }
 }
 ```
+### 汇编指令
+
+.file string（.app-file string）：用于告诉汇编其接下来的代码、指令，属于所跟的字符串表示的逻辑文件（也就是逻辑上它们是属于这个文件的），字符串可以用双引号包围，也可以没有，但是如果是空字符串，必须用双引号；
+
+.text subsection：告诉汇编其将接下来的指令放入text段中subsection指定的子段中，如果subsection省略，则默认使用0号段；
+
+.global symbol, .globl symbol：汇编器将symbol暴露给链接器；
+
+.type int：用于指定符号表中符号的类型；
+
+.section name：将接下来的代码放入由name指定的段中；
+
+.ascii "string"...：定义字符串数据；
+
+.size：用于添加调试信息，并且这些个指令只在生成COFF格式的文件有效；
+
+.ident：用于向目标文件中添加标签；
+
+### 数据指令
+
+.align abs-expr, abs-expr, abs-expr：将当前位置的存储区域填充到一个特定的大小，指令后面跟的三个表达式分别表示填充的字节数、填充的内容、需要跳过的最大字节数。后面两个表达式可以省略。
+
+.asciz "string"...：指定字符串数据，与.ascii不同的是.asciz会在字符串末尾自动填充一个空字符；
+
+.float flonums：定义浮点型数据；
+
+.int expressions：定义整型数据；
+
+.byte expressions：定义字节数据；
+
+.hword expressions：定义存放与两个字节的数据；
+
+.octa bignums：定义十六个字节的数据，octa的意思是8个字，因为定义一个字为两个字节，因此八个字是十六字节；
+
+.quad bignums：定义八个字节的数据；
+
+.string "str"：拷贝str到目标文件中，也就是定义字符串；
+
+.word expressions：定义一个字长度的数据，具体的字节数以及大小端格式视具体架构而定；
+
+.long expressions：与.int一样；
+
+.def name：为符号name定义调试信息，直到遇到.endef指令为止；
+
+.desc symbol, abs-expression：为符号定义描述；
+
+.double flonums：定义双精度浮点数；
+
+### 行为指令
+
+
+.abort：立即结束汇编操作；
+
+.data subsection：将接下来的指令放入指定的数据子段，如果子段没有指定，则默认放入0号子段；
+
+.eject：强制换页；
+
+.if absolute expression：条件性的汇编接下来的指令，和一般的语言中的if分支类似，可以有.else, .elseif等指令与之匹配，并以.endif表示条件汇编结束；
+
+.include "file"：将其他汇编文件添加进来，可以通过命令行-I选项指定搜索路径；
+
+.line line-number：修改逻辑行号；
+
+.linkonce [type]：指导链接器如何操作接下来的指令；
+
+.macro [macname [macargs ...]]定义以段宏，并以.endm结束，也可以使用.exitm提前推出宏，定义后的宏可以与一般操作码一样使用；
+
+.rept count：重复执行接下来的代码指定次，直到遇到.endr指令；
+
+.set symbol, expression：为符号赋值；
+
+.skip size , fill：条过size指定数量的字节后获取fill指定数量的字节空间;
+
+.space size , fill与.skip一样；
+
+.stabd, .stabn, .stabs：定义调试信息。
 
 ## 杂项
 
