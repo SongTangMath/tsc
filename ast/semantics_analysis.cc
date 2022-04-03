@@ -72,6 +72,11 @@ int analyze_declaration(std::shared_ptr<ast_node> declaration, semantics_analysi
     semantics_analysis_result = analyze_declaration_specifiers(declaration_specifiers, context, symbol);
     if (semantics_analysis_result)
       return semantics_analysis_result;
+    //如果没有init_declarator_list说明是声明一个类型如struct A{...};此时如果不是匿名enum_struct_union需要加入tags
+    // primitive类型也没有name 这里如果之前已经有过同名的struct union enum了,需要检查之前的是否是incomplete.如果是才用当前定义覆盖.
+    if (symbol->type->name)
+      context.current_symbol_table_node->struct_union_enum_names[*symbol->type->name] = symbol->type;
+
   } break;
   case NODE_TYPE_DECLARATION_SUBTYPE_DECLARATION_SPECIFIERS_INIT_DECLARATOR_LIST_SEMI_COLON: {
 
@@ -83,7 +88,8 @@ int analyze_declaration(std::shared_ptr<ast_node> declaration, semantics_analysi
     semantics_analysis_result = analyze_init_declarator_list(init_declarator_list, context);
     if (semantics_analysis_result)
       return semantics_analysis_result;
-
+    //如果有init_declarator_list,可能是声明一个类型如struct A{...} a;此时也需要加入tags且A必须是complete type
+    //注意指针变量的声明 struct A *p;则A可以是incomplete
   } break;
   case NODE_TYPE_DECLARATION_SUBTYPE_STATIC_ASSERT_DECLARATION:
     printf("%s:%d error:\n\tstatic_assert_declaration not supported\n", input_file_name.c_str(),
@@ -741,7 +747,7 @@ int check_type_specifiers(std::vector<std::shared_ptr<ast_node>> &type_specifier
                                                           : global_types::primitive_type_const_unsigned_short;
     break;
   case PRIMITIVE_TYPE_ENUM: {
-    symbol->type->type_id = type_id;
+    symbol->type->type_id = PRIMITIVE_TYPE_ENUM;
     symbol->type->type_size = sizeof(int);
     std::shared_ptr<ast_node> enum_specifier = type_specifiers[0]->items[0];
     int semantics_analysis_result = analyze_enum_specifier(enum_specifier, context, symbol);
@@ -850,16 +856,19 @@ int analyze_enum_specifier(std::shared_ptr<ast_node> enum_specifier, semantics_a
     for (std::map<std::string, std::shared_ptr<tsc_type>>::iterator it =
              context.current_symbol_table_node->struct_union_enum_names.begin();
          it != context.current_symbol_table_node->struct_union_enum_names.end(); it++) {
-      //可以多次声明但是只能定义1次
-      if (it->first == identifier && !check_type_compatibility(it->second, symbol->type)) {
-        printf("%s:%d error:\n\tincorrect tag '%s'\n", input_file_name.c_str(),
-               identifier_node->get_first_terminal_line_no(), identifier.c_str());
-        return 1;
+      //可以多次声明但是只能定义1次.检查之前是否已经有complete的declaration
+      if (it->first == identifier) {
+        if (!check_type_compatibility(it->second, symbol->type)) {
+          printf("%s:%d error:\n\tincorrect tag '%s'\n", input_file_name.c_str(),
+                 identifier_node->get_first_terminal_line_no(), identifier.c_str());
+          return 1;
+        }
+        //之前可能已经有形如enum A;的incomplete declaration则用当前的declaration覆盖它(当前的declaration是否complete都可以覆盖)
+        if (!it->second->is_complete)
+          it->second = symbol->type;
       }
     }
-    //校验无误,加入tags
     symbol->type->name = identifier_node->lexeme;
-    context.current_symbol_table_node->struct_union_enum_names[identifier] = symbol->type;
   }
 
   if (enumerator_list)
@@ -868,8 +877,41 @@ int analyze_enum_specifier(std::shared_ptr<ast_node> enum_specifier, semantics_a
     return 0;
 }
 
+/*
+struct_or_union_specifier
+: struct_or_union '{' struct_declaration_list '}'
+| struct_or_union IDENTIFIER '{' struct_declaration_list '}'
+| struct_or_union IDENTIFIER
+;
+*/
+
 int analyze_struct_or_union_specifier(std::shared_ptr<ast_node> struct_or_union_specifier,
                                       semantics_analysis_context &context, std::shared_ptr<tsc_symbol> &symbol) {
+
+  std::shared_ptr<ast_node> struct_or_union = struct_or_union_specifier->items[0];
+  std::shared_ptr<ast_node> identifier_node;
+  switch (struct_or_union_specifier->node_sub_type) {
+  case NODE_TYPE_STRUCT_OR_UNION_SPECIFIER_SUBTYPE_STRUCT_OR_UNION_LEFT_BRACE_STRUCT_DECLARATION_LIST_RIGHT_BRACE: {
+    symbol->type->is_complete = true;
+    std::shared_ptr<ast_node> struct_declaration_list = struct_or_union_specifier->items[2];
+  } break;
+
+  case NODE_TYPE_STRUCT_OR_UNION_SPECIFIER_SUBTYPE_STRUCT_OR_UNION_IDENTIFIER_LEFT_BRACE_STRUCT_DECLARATION_LIST_RIGHT_BRACE: {
+    symbol->type->is_complete = true;
+    identifier_node = struct_or_union_specifier->items[1];
+    std::shared_ptr<ast_node> struct_declaration_list = struct_or_union_specifier->items[3];
+  }
+
+  break;
+
+  case NODE_TYPE_STRUCT_OR_UNION_SPECIFIER_SUBTYPE_IDENTIFIER: {
+    symbol->type->is_complete = false;
+    identifier_node = struct_or_union_specifier->items[1];
+  }
+
+  break;
+  }
+
   return 0;
 }
 
@@ -1567,7 +1609,7 @@ int analyze_cast_expression(std::shared_ptr<ast_node> cast_expression, semantics
   case NODE_TYPE_CAST_EXPRESSION_SUBTYPE_LEFT_PARENTHESIS_TYPE_NAME_RIGHT_PARENTHESIS_CAST_EXPRESSION:
     std::shared_ptr<ast_node> type_name = cast_expression->items[1];
     std::shared_ptr<tsc_type> type_out = std::make_shared<tsc_type>();
-    semantics_analysis_result = analyze_type_name(type_name, context, type_out);
+    semantics_analysis_result = analyze_type_name(type_name, context);
     if (semantics_analysis_result)
       return semantics_analysis_result;
 
@@ -1778,16 +1820,31 @@ int analyze_unary_expression(std::shared_ptr<ast_node> unary_expression, semanti
   break;
   case NODE_TYPE_UNARY_EXPRESSION_SUBTYPE_SIZEOF_LEFT_PARENTHESIS_TYPE_NAME_RIGHT_PARENTHESIS: {
     std::shared_ptr<ast_node> type_name = unary_expression->items[2];
-    std::shared_ptr<tsc_type> type_out;
-    type_out = std::make_shared<tsc_type>();
-    semantics_analysis_result = analyze_type_name(type_name, context, type_out);
+
+    semantics_analysis_result = analyze_type_name(type_name, context);
     if (semantics_analysis_result)
       return semantics_analysis_result;
+    std::shared_ptr<tsc_type> type_out = type_name->symbol->type;
     if (type_out == global_types::primitive_type_void || type_out == global_types::primitive_type_const_void) {
       printf("%s:%d error:\n\tinvalid application of 'sizeof' to an incomplete type 'void' in unary_expression\n",
              input_file_name.c_str(), unary_expression->get_first_terminal_line_no());
       return 1;
     }
+    //如果是enum struct union必须是complete type
+    if (is_struct_union_enum_number(type_name)) {
+      std::string type_name_identifier = *type_out->name;
+      std::shared_ptr<tsc_type> type = lookup_type(context.current_symbol_table_node, type_name_identifier, true);
+      if (!type) {
+        printf("%s:%d error:\n\ttag '%s' not found in unary_expression\n", input_file_name.c_str(),
+               unary_expression->get_first_terminal_line_no(), type_name_identifier.c_str());
+        return 1;
+      } else if (!type->is_complete) {
+        printf("%s:%d error:\n\tsizeof incomplete type '%s' in unary_expression\n", input_file_name.c_str(),
+               unary_expression->get_first_terminal_line_no(), type_name_identifier.c_str());
+        return 1;
+      }
+    }
+
     unary_expression->symbol = std::make_shared<tsc_symbol>();
     unary_expression->symbol->symbol_type = SYMBOL_TYPE_ICONSTANT;
     unary_expression->symbol->type = global_types::primitive_type_sizeof;
@@ -1811,26 +1868,25 @@ type_name
 	| specifier_qualifier_list
 	;
  */
-int analyze_type_name(std::shared_ptr<ast_node> type_name, semantics_analysis_context &context,
-                      std::shared_ptr<tsc_type> &out_type) {
+int analyze_type_name(std::shared_ptr<ast_node> type_name, semantics_analysis_context &context) {
   int semantics_analysis_result = 0;
 
   switch (type_name->node_sub_type) {
   case NODE_TYPE_TYPE_NAME_SUBTYPE_SPECIFIER_QUALIFIER_LIST_ABSTRACT_DECLARATOR: {
     std::shared_ptr<ast_node> specifier_qualifier_list = type_name->items[0];
     std::shared_ptr<ast_node> abstract_declarator = type_name->items[1];
-    semantics_analysis_result = analyze_specifier_qualifier_list(specifier_qualifier_list, context, out_type);
+    semantics_analysis_result = analyze_specifier_qualifier_list(specifier_qualifier_list, context);
     if (semantics_analysis_result)
       return semantics_analysis_result;
-
+    //todo abstract declarator
   } break;
   case NODE_TYPE_TYPE_NAME_SUBTYPE_SPECIFIER_QUALIFIER_LIST: {
     std::shared_ptr<ast_node> specifier_qualifier_list = type_name->items[0];
 
-    semantics_analysis_result = analyze_specifier_qualifier_list(specifier_qualifier_list, context, out_type);
+    semantics_analysis_result = analyze_specifier_qualifier_list(specifier_qualifier_list, context);
     if (semantics_analysis_result)
       return semantics_analysis_result;
-
+    type_name->symbol = specifier_qualifier_list->symbol;
   } break;
   }
   return semantics_analysis_result;
@@ -2272,6 +2328,15 @@ bool is_integer_or_floating_number(const std::shared_ptr<ast_node> &node) {
   return PRIMITIVE_TYPE_CHAR <= node->symbol->type->type_id &&
          node->symbol->type->type_id <= PRIMITIVE_TYPE_LONG_DOUBLE;
 }
+bool is_struct_union_enum_number(const std::shared_ptr<ast_node> &node) {
+  switch (node->symbol->type->type_id) {
+  case PRIMITIVE_TYPE_ENUM:
+  case RECORD_TYPE_STRUCT_OR_UNION:
+    return true;
+  default:
+    return false;
+  }
+}
 
 bool is_integer(const std::shared_ptr<ast_node> &node) {
   return PRIMITIVE_TYPE_CHAR <= node->symbol->type->type_id &&
@@ -2555,7 +2620,7 @@ specifier_qualifier_list
 	;
  */
 int analyze_specifier_qualifier_list(std::shared_ptr<ast_node> specifier_qualifier_list,
-                                     semantics_analysis_context &context, std::shared_ptr<tsc_type> &out_type) {
+                                     semantics_analysis_context &context) {
 
   std::vector<std::shared_ptr<ast_node>> type_specifiers;
   std::vector<std::shared_ptr<ast_node>> type_qualifiers;
@@ -2600,7 +2665,7 @@ int analyze_specifier_qualifier_list(std::shared_ptr<ast_node> specifier_qualifi
   semantics_analysis_result = check_type_qualifiers(type_qualifiers, context, symbol);
   if (semantics_analysis_result)
     return semantics_analysis_result;
-  out_type = symbol->type;
+  specifier_qualifier_list->symbol = symbol;
   return 0;
 }
 
@@ -2771,4 +2836,14 @@ std::shared_ptr<tsc_symbol> lookup_function_symbol(std::shared_ptr<symbol_table_
     return lookup_variable_symbol(symbol_table_node->parent, symbol_identifier, search_outer);
   else
     return std::shared_ptr<tsc_symbol>();
+}
+
+std::shared_ptr<tsc_type> lookup_type(std::shared_ptr<symbol_table_node> symbol_table_node,
+                                      const std::string &type_name, bool search_outer) {
+  if (symbol_table_node->struct_union_enum_names.find(type_name) != symbol_table_node->struct_union_enum_names.end())
+    return symbol_table_node->struct_union_enum_names[type_name];
+  if (search_outer && symbol_table_node->parent)
+    return lookup_type(symbol_table_node->parent, type_name, search_outer);
+  else
+    return std::shared_ptr<tsc_type>();
 }

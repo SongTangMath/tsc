@@ -510,7 +510,7 @@ struct tsc_type {
   // for struct union enum
   bool is_complete = true; // struct A; -> incomplete
   int type_id = -1;
-
+    int sub_type_id = -1;
   size_t type_size;
   //can be nullptr for incomplete array
   std::shared_ptr<size_t> array_length;

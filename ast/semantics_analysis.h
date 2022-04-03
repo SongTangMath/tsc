@@ -19,7 +19,9 @@ enum {
   PRIMITIVE_TYPE_LONG_DOUBLE,
   RECORD_TYPE_STRUCT_OR_UNION,
   SCALAR_TYPE_POINTER,
-  SCALAR_TYPE_ARRAY
+  SCALAR_TYPE_ARRAY,
+  SUB_TYPE_STRUCT,
+  SUB_TYPE_UNION
 };
 
 enum {
@@ -136,8 +138,7 @@ int analyze_postfix_expression(std::shared_ptr<ast_node> postfix_expression, sem
 int analyze_primary_expression(std::shared_ptr<ast_node> primary_expression, semantics_analysis_context &context,
                                int symbol_type_to_find);
 
-int analyze_type_name(std::shared_ptr<ast_node> type_name, semantics_analysis_context &context,
-                      std::shared_ptr<tsc_type> &out_type);
+int analyze_type_name(std::shared_ptr<ast_node> type_name, semantics_analysis_context &context);
 int analyze_expression(std::shared_ptr<ast_node> expression, semantics_analysis_context &context);
 
 int analyze_constant(std::shared_ptr<ast_node> constant, semantics_analysis_context &context);
@@ -157,6 +158,7 @@ bool is_constant(const std::shared_ptr<ast_node> &node);
 bool is_array_or_pointer(const std::shared_ptr<ast_node> &node);
 bool is_integer(const std::shared_ptr<ast_node> &node);
 bool is_integer_or_floating_number(const std::shared_ptr<ast_node> &node);
+bool is_struct_union_enum_number(const std::shared_ptr<ast_node> &node);
 
 std::shared_ptr<tsc_symbol> lookup_variable_symbol(std::shared_ptr<symbol_table_node> symbol_table_node,
                                                    const std::string &symbol_identifier, bool search_outer);
@@ -173,4 +175,4 @@ int construct_unary_expression_symbol(std::shared_ptr<ast_node> parent, int unar
 
 int analyze_init_declarator_list(std::shared_ptr<ast_node> init_declarator_list, semantics_analysis_context &context);
 int analyze_specifier_qualifier_list(std::shared_ptr<ast_node> specifier_qualifier_list,
-                                     semantics_analysis_context &context, std::shared_ptr<tsc_type> &out_type);
+                                     semantics_analysis_context &context);
