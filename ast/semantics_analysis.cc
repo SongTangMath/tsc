@@ -866,6 +866,12 @@ int analyze_enum_specifier(std::shared_ptr<ast_node> enum_specifier, semantics_a
         //之前可能已经有形如enum A;的incomplete declaration则用当前的declaration覆盖它(当前的declaration是否complete都可以覆盖)
         if (!it->second->is_complete)
           it->second = symbol->type;
+        //之前已经有一个complete声明了,当前的必须是形如enum A;的声明否则是 redefinition
+        else if (symbol->type->is_complete) {
+          printf("%s:%d error:\n\tredefinition tag '%s'\n", input_file_name.c_str(),
+                 identifier_node->get_first_terminal_line_no(), identifier.c_str());
+          return 1;
+        }
       }
     }
     symbol->type->name = identifier_node->lexeme;
@@ -890,16 +896,27 @@ int analyze_struct_or_union_specifier(std::shared_ptr<ast_node> struct_or_union_
 
   std::shared_ptr<ast_node> struct_or_union = struct_or_union_specifier->items[0];
   std::shared_ptr<ast_node> identifier_node;
+  std::shared_ptr<ast_node> struct_declaration_list;
+
+  switch (struct_or_union->node_sub_type) {
+  case NODE_TYPE_STRUCT_OR_UNION_SUBTYPE_STRUCT:
+    symbol->type->sub_type_id = SUB_TYPE_STRUCT;
+    break;
+  case NODE_TYPE_STRUCT_OR_UNION_SUBTYPE_UNION:
+    symbol->type->sub_type_id = SUB_TYPE_UNION;
+    break;
+  }
+
   switch (struct_or_union_specifier->node_sub_type) {
   case NODE_TYPE_STRUCT_OR_UNION_SPECIFIER_SUBTYPE_STRUCT_OR_UNION_LEFT_BRACE_STRUCT_DECLARATION_LIST_RIGHT_BRACE: {
     symbol->type->is_complete = true;
-    std::shared_ptr<ast_node> struct_declaration_list = struct_or_union_specifier->items[2];
+    struct_declaration_list = struct_or_union_specifier->items[2];
   } break;
 
   case NODE_TYPE_STRUCT_OR_UNION_SPECIFIER_SUBTYPE_STRUCT_OR_UNION_IDENTIFIER_LEFT_BRACE_STRUCT_DECLARATION_LIST_RIGHT_BRACE: {
     symbol->type->is_complete = true;
     identifier_node = struct_or_union_specifier->items[1];
-    std::shared_ptr<ast_node> struct_declaration_list = struct_or_union_specifier->items[3];
+    struct_declaration_list = struct_or_union_specifier->items[3];
   }
 
   break;
@@ -910,6 +927,158 @@ int analyze_struct_or_union_specifier(std::shared_ptr<ast_node> struct_or_union_
   }
 
   break;
+  }
+
+  if (identifier_node) {
+    std::string identifier = *identifier_node->lexeme;
+    // 检查符号表中是否已经有同名的符号
+    for (std::map<std::string, std::shared_ptr<tsc_type>>::iterator it =
+             context.current_symbol_table_node->struct_union_enum_names.begin();
+         it != context.current_symbol_table_node->struct_union_enum_names.end(); it++) {
+      //可以多次声明但是只能定义1次.检查之前是否已经有complete的declaration.这里的检查逻辑与enum一致
+      if (it->first == identifier) {
+        if (!check_type_compatibility(it->second, symbol->type)) {
+          printf("%s:%d error:\n\tincorrect tag '%s'\n", input_file_name.c_str(),
+                 identifier_node->get_first_terminal_line_no(), identifier.c_str());
+          return 1;
+        }
+        if (!it->second->is_complete)
+          it->second = symbol->type;
+        else if (symbol->type->is_complete) {
+          printf("%s:%d error:\n\tredefinition tag '%s'\n", input_file_name.c_str(),
+                 identifier_node->get_first_terminal_line_no(), identifier.c_str());
+          return 1;
+        }
+      }
+    }
+    symbol->type->name = identifier_node->lexeme;
+  }
+
+  if (struct_declaration_list)
+    return analyze_struct_declaration_list(struct_declaration_list, context, symbol);
+
+  return 0;
+}
+
+/*
+struct_declaration_list
+	: struct_declaration
+	| struct_declaration_list struct_declaration
+	;
+*/
+int analyze_struct_declaration_list(std::shared_ptr<ast_node> struct_declaration_list,
+                                    semantics_analysis_context &context, std::shared_ptr<tsc_symbol> &symbol) {
+
+  std::vector<std::shared_ptr<ast_node>> struct_declarations;
+  std::shared_ptr<ast_node> node = struct_declaration_list;
+
+  context.current_symbol_table_node = std::make_shared<symbol_table_node>();
+  while (node->node_type == NODE_TYPE_STRUCT_DECLARATION_LIST &&
+         node->node_sub_type == NODE_TYPE_STRUCT_DECLARATION_LIST_SUBTYPE_STRUCT_DECLARATION_LIST_STRUCT_DECLARATION) {
+    struct_declarations.push_back(node->items[1]);
+    node = node->items[0];
+  }
+
+  struct_declarations.push_back(node->items[0]);
+  struct_declarations =
+      std::vector<std::shared_ptr<ast_node>>(struct_declarations.rbegin(), struct_declarations.rend());
+  struct_declaration_list->sub_nodes = struct_declarations;
+  int semantics_analysis_result;
+  for (std::shared_ptr<ast_node> struct_declaration : struct_declarations) {
+    semantics_analysis_result = analyze_struct_declaration(struct_declaration, context, symbol);
+    if (semantics_analysis_result)
+      return semantics_analysis_result;
+  }
+  return 0;
+}
+
+/*
+struct_declaration
+	: specifier_qualifier_list ';'	 for anonymous struct/union
+    | specifier_qualifier_list struct_declarator_list ';'
+    | static_assert_declaration
+;
+*/
+
+int analyze_struct_declaration(std::shared_ptr<ast_node> struct_declaration, semantics_analysis_context &context,
+                               std::shared_ptr<tsc_symbol> &symbol) {
+  //每个declarator都需要加入fields.一个struct_declaration可能有多个declarator如int a,b;
+  int semantics_analysis_result;
+
+  switch (struct_declaration->node_sub_type) {
+  case NODE_TYPE_STRUCT_DECLARATION_SUBTYPE_SPECIFIER_QUALIFIER_LIST_SEMI_COLON: {
+    std::shared_ptr<ast_node> specifier_qualifier_list = struct_declaration->items[0];
+
+    semantics_analysis_result = analyze_specifier_qualifier_list(specifier_qualifier_list, context);
+    if (semantics_analysis_result)
+      return semantics_analysis_result;
+    std::shared_ptr<tsc_symbol> field_symbol = specifier_qualifier_list->symbol;
+    //register an anonymous field
+    std::shared_ptr<tsc_field> field = std::make_shared<tsc_field>();
+    field->is_anonymous = true;
+    //todo type must be complete
+    field->type = field_symbol->type;
+    field->is_bit_field = false;
+    symbol->type->fields.push_back(field);
+
+  } break;
+  case NODE_TYPE_STRUCT_DECLARATION_SUBTYPE_SPECIFIER_QUALIFIER_LIST_STRUT_DECLARATOR_LIST_SEMI_COLON: {
+    std::shared_ptr<ast_node> specifier_qualifier_list = struct_declaration->items[0];
+    std::shared_ptr<ast_node> struct_declarator_list = struct_declaration->items[1];
+
+    semantics_analysis_result = analyze_specifier_qualifier_list(specifier_qualifier_list, context);
+    if (semantics_analysis_result)
+      return semantics_analysis_result;
+    std::shared_ptr<tsc_symbol> field_symbol = specifier_qualifier_list->symbol;
+    // non-anonymous fields registered in analyze_struct_declarator_list
+
+    semantics_analysis_result =
+        analyze_struct_declarator_list(struct_declarator_list, context, symbol, field_symbol->type);
+    if (semantics_analysis_result)
+      return semantics_analysis_result;
+
+  } break;
+  case NODE_TYPE_STRUCT_DECLARATION_SUBTYPE_STATIC_ASSERT_DECLARATION:
+    printf("%s:%d error:\n\tstatic_assert_declaration not supported\n", input_file_name.c_str(),
+           struct_declaration->get_first_terminal_line_no());
+    return 1;
+  }
+
+  return 0;
+}
+
+/*
+struct_declarator_list
+	: struct_declarator
+	| struct_declarator_list ',' struct_declarator
+	;
+*/
+
+int analyze_struct_declarator_list(std::shared_ptr<ast_node> struct_declarator_list,
+                                   semantics_analysis_context &context, std::shared_ptr<tsc_symbol> &symbol,
+                                   std::shared_ptr<tsc_type> field_type) {
+  std::vector<std::shared_ptr<ast_node>> struct_declarators;
+  std::shared_ptr<ast_node> node = struct_declarator_list;
+
+  context.current_symbol_table_node = std::make_shared<symbol_table_node>();
+  while (node->node_type == NODE_TYPE_STRUCT_DECLARATOR_LIST &&
+         node->node_sub_type ==
+             NODE_TYPE_STRUCT_DECLARATOR_LIST_SUBTYPE_STRUCT_DECLARATOR_LIST_COMMA_STRUCT_DECLARATOR) {
+    struct_declarators.push_back(node->items[2]);
+    node = node->items[0];
+  }
+
+  struct_declarators.push_back(node->items[0]);
+  struct_declarators = std::vector<std::shared_ptr<ast_node>>(struct_declarators.rbegin(), struct_declarators.rend());
+  struct_declarator_list->sub_nodes = struct_declarators;
+
+  for (std::shared_ptr<ast_node> struct_declarator : struct_declarators) {
+    std::shared_ptr<tsc_field> field = std::make_shared<tsc_field>();
+    field->is_anonymous = false;
+    //todo type可能与declarator有关.bit_field也还没处理.
+    field->type = field_type;
+    field->is_bit_field = false;
+    symbol->type->fields.push_back(field);
   }
 
   return 0;

@@ -176,3 +176,15 @@ int construct_unary_expression_symbol(std::shared_ptr<ast_node> parent, int unar
 int analyze_init_declarator_list(std::shared_ptr<ast_node> init_declarator_list, semantics_analysis_context &context);
 int analyze_specifier_qualifier_list(std::shared_ptr<ast_node> specifier_qualifier_list,
                                      semantics_analysis_context &context);
+
+int analyze_struct_declaration_list(std::shared_ptr<ast_node> struct_declaration_list,
+                                     semantics_analysis_context &context, std::shared_ptr<tsc_symbol> &symbol);
+
+int analyze_struct_declaration(std::shared_ptr<ast_node> struct_declaration,
+                                    semantics_analysis_context &context, std::shared_ptr<tsc_symbol> &symbol);
+
+int analyze_struct_declarator_list(std::shared_ptr<ast_node> struct_declarator_list,
+                               semantics_analysis_context &context, std::shared_ptr<tsc_symbol> &symbol,std::shared_ptr<tsc_type> field_type);
+
+
+

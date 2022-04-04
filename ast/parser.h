@@ -497,6 +497,19 @@ struct expression_value {
   };
 };
 
+struct tsc_type;
+struct tsc_field {
+    bool is_bit_field;
+    int bit_field_length;
+    bool is_anonymous;
+    //can be nullptr for anonymous fields
+    std::shared_ptr<std::string>field_identifier;
+    std::shared_ptr<tsc_type> type;
+    int offset;
+    size_t size;
+};
+
+
 struct tsc_type {
   bool const_type_qualifier_set = false;
   bool restrict_type_qualifier_set = false;
@@ -516,6 +529,8 @@ struct tsc_type {
   std::shared_ptr<size_t> array_length;
   //如果是指针则dereference后的type是underlying_type 数组同理
   std::shared_ptr<tsc_type> underlying_type;
+  //for struct_union fields
+  std::vector<std::shared_ptr<tsc_field>>fields;
 };
 struct tsc_memory_location {};
 struct tsc_symbol {
