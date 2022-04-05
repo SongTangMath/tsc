@@ -856,7 +856,8 @@ int analyze_enum_specifier(std::shared_ptr<ast_node> enum_specifier, semantics_a
     for (std::map<std::string, std::shared_ptr<tsc_type>>::iterator it =
              context.current_symbol_table_node->struct_union_enum_names.begin();
          it != context.current_symbol_table_node->struct_union_enum_names.end(); it++) {
-      //可以多次声明但是只能定义1次.检查之前是否已经有complete的declaration
+      //可以多次声明但是只能定义1次.检查之前是否已经有complete的declaration.这里实际上只是检查了是否声明了其它类型的同名tag
+      // 如 struct A; union A;->error
       if (it->first == identifier) {
         if (!check_type_compatibility(it->second, symbol->type)) {
           printf("%s:%d error:\n\tincorrect tag '%s'\n", input_file_name.c_str(),
@@ -1012,14 +1013,8 @@ int analyze_struct_declaration(std::shared_ptr<ast_node> struct_declaration, sem
     semantics_analysis_result = analyze_specifier_qualifier_list(specifier_qualifier_list, context);
     if (semantics_analysis_result)
       return semantics_analysis_result;
-    std::shared_ptr<tsc_symbol> field_symbol = specifier_qualifier_list->symbol;
-    //register an anonymous field
-    std::shared_ptr<tsc_field> field = std::make_shared<tsc_field>();
-    field->is_anonymous = true;
-    //todo type must be complete
-    field->type = field_symbol->type;
-    field->is_bit_field = false;
-    symbol->type->fields.push_back(field);
+    printf("%s:%d warning:\n\t declaration '%s' does not declare anything\n", input_file_name.c_str(),
+           struct_declaration->get_first_terminal_line_no(), struct_declaration->get_expression().c_str());
 
   } break;
   case NODE_TYPE_STRUCT_DECLARATION_SUBTYPE_SPECIFIER_QUALIFIER_LIST_STRUT_DECLARATOR_LIST_SEMI_COLON: {
@@ -1032,8 +1027,7 @@ int analyze_struct_declaration(std::shared_ptr<ast_node> struct_declaration, sem
     std::shared_ptr<tsc_symbol> field_symbol = specifier_qualifier_list->symbol;
     // non-anonymous fields registered in analyze_struct_declarator_list
 
-    semantics_analysis_result =
-        analyze_struct_declarator_list(struct_declarator_list, context, symbol, field_symbol->type);
+    semantics_analysis_result = analyze_struct_declarator_list(struct_declarator_list, context, symbol, field_symbol);
     if (semantics_analysis_result)
       return semantics_analysis_result;
 
@@ -1054,12 +1048,13 @@ struct_declarator_list
 	;
 */
 
+// 参数symbol中的type表示当前struct_declarator_list所在的struct的type
 int analyze_struct_declarator_list(std::shared_ptr<ast_node> struct_declarator_list,
                                    semantics_analysis_context &context, std::shared_ptr<tsc_symbol> &symbol,
-                                   std::shared_ptr<tsc_type> field_type) {
+                                   std::shared_ptr<tsc_symbol> &field_symbol) {
   std::vector<std::shared_ptr<ast_node>> struct_declarators;
   std::shared_ptr<ast_node> node = struct_declarator_list;
-
+  int semantics_analysis_result;
   context.current_symbol_table_node = std::make_shared<symbol_table_node>();
   while (node->node_type == NODE_TYPE_STRUCT_DECLARATOR_LIST &&
          node->node_sub_type ==
@@ -1071,17 +1066,192 @@ int analyze_struct_declarator_list(std::shared_ptr<ast_node> struct_declarator_l
   struct_declarators.push_back(node->items[0]);
   struct_declarators = std::vector<std::shared_ptr<ast_node>>(struct_declarators.rbegin(), struct_declarators.rend());
   struct_declarator_list->sub_nodes = struct_declarators;
-
+  //每个 struct_declarator 应该是一个独立的symbol 如int a,b;则a,b分别是一个symbol.所以这里copy一份
   for (std::shared_ptr<ast_node> struct_declarator : struct_declarators) {
-    std::shared_ptr<tsc_field> field = std::make_shared<tsc_field>();
-    field->is_anonymous = false;
-    //todo type可能与declarator有关.bit_field也还没处理.
-    field->type = field_type;
-    field->is_bit_field = false;
-    symbol->type->fields.push_back(field);
+    std::shared_ptr<tsc_symbol> field = std::make_shared<tsc_symbol>();
+    std::shared_ptr<tsc_symbol> struct_declarator_symbol = std::make_shared<tsc_symbol>();
+    struct_declarator_symbol->type = field_symbol->type;
+    semantics_analysis_result = analyze_struct_declarator(struct_declarator, context, symbol, struct_declarator_symbol);
+
+    if (semantics_analysis_result)
+      return semantics_analysis_result;
+    struct_declarator->symbol = struct_declarator_symbol;
+    symbol->type->fields.push_back(field_symbol);
   }
 
   return 0;
+}
+
+/*
+struct_declarator
+	: ':' constant_expression
+	| declarator ':' constant_expression
+	| declarator
+	;
+*/
+
+int analyze_struct_declarator(std::shared_ptr<ast_node> struct_declarator, semantics_analysis_context &context,
+                              std::shared_ptr<tsc_symbol> &symbol,
+                              std::shared_ptr<tsc_symbol> &struct_declarator_symbol) {
+  // declarator->symbol的type字段已填好
+  int semantics_analysis_result;
+  std::shared_ptr<ast_node> constant_expression;
+  std::shared_ptr<ast_node> declarator;
+  switch (struct_declarator->node_sub_type) {
+  case NODE_TYPE_STRUCT_DECLARATOR_SUBTYPE_COLON_CONSTANT_EXPRESSION: {
+    struct_declarator_symbol->is_anonymous = true;
+    struct_declarator_symbol->is_bit_field = true;
+    declarator = struct_declarator->items[0];
+    constant_expression = struct_declarator->items[1];
+
+  } break;
+  case NODE_TYPE_STRUCT_DECLARATOR_SUBTYPE_DECLARATOR_COLON_CONSTANT_EXPRESSION: {
+    struct_declarator_symbol->is_anonymous = false;
+    struct_declarator_symbol->is_bit_field = true;
+    declarator = struct_declarator->items[0];
+    constant_expression = struct_declarator->items[2];
+  } break;
+  case NODE_TYPE_STRUCT_DECLARATOR_SUBTYPE_DECLARATOR: {
+    struct_declarator_symbol->is_anonymous = false;
+    struct_declarator_symbol->is_bit_field = false;
+  } break;
+  }
+
+  if (constant_expression) {
+    semantics_analysis_result = analyze_constant_expression(constant_expression, context);
+    if (semantics_analysis_result)
+      return semantics_analysis_result;
+    if (!is_integer_constant(constant_expression)) {
+      printf("%s:%d error:\n\tconstant_expression '%s' should be integer\n", input_file_name.c_str(),
+             constant_expression->get_first_terminal_line_no(), constant_expression->get_expression().c_str());
+      return 1;
+    }
+    //todo check type length int a:64;->error int *a:12;->error(invalid type)
+    struct_declarator_symbol->bit_field_length = constant_expression->symbol->value->int_value;
+  }
+  if (declarator) {
+    declarator->symbol = struct_declarator_symbol;
+    semantics_analysis_result = analyze_declarator(declarator, context, struct_declarator_symbol);
+    if (semantics_analysis_result)
+      return semantics_analysis_result;
+  }
+
+  return 0;
+}
+
+/*
+declarator
+	: pointer direct_declarator
+	| direct_declarator
+	;
+*/
+
+int analyze_declarator(std::shared_ptr<ast_node> declarator, semantics_analysis_context &context,
+                       std::shared_ptr<tsc_symbol> &declarator_symbol) {
+
+  int semantics_analysis_result;
+
+  switch (declarator->node_sub_type) {
+  case NODE_TYPE_DECLARATOR_SUBTYPE_POINTER_DIRECT_DECLARATOR: {
+    std::shared_ptr<ast_node> pointer = declarator->items[0];
+    std::shared_ptr<ast_node> direct_declarator = declarator->items[1];
+    direct_declarator->symbol = std::make_shared<tsc_symbol>();
+    // 举例:对于int ** const * p;的解析.首先得到 declarator symbol, expression为 ** const * direct_declarator 类型为int.
+    // 其中 direct_declarator 的expression为 "p" 然后先构造direct_declarator的符号再解析pointer部分.注意pointer是右递归的
+    // 得到一个 derived_declarator_symbol * const * p. 类型为pointer,underlying_type为int derived_declarator_symbol的类型(当前还未知)
+    // declarator_symbol 的 operator_id 为 UNARY_OPERATOR_MUL operand 为 derived_declarator_symbol p
+    // 所以构造symbol的顺序与解析type的顺序是逐层的. symbol 是 *p 则  p的type是pointer(or const pointer) to (type of *p)
+    semantics_analysis_result = analyze_pointer(pointer, context, declarator->symbol, direct_declarator->symbol);
+    if (semantics_analysis_result)
+      return semantics_analysis_result;
+
+    semantics_analysis_result = analyze_direct_declarator(direct_declarator, context);
+    if (semantics_analysis_result)
+      return semantics_analysis_result;
+
+  } break;
+  case NODE_TYPE_DECLARATOR_SUBTYPE_DIRECT_DECLARATOR: {
+    std::shared_ptr<ast_node> direct_declarator = declarator->items[0];
+    direct_declarator->symbol = declarator->symbol;
+    semantics_analysis_result = analyze_direct_declarator(direct_declarator, context);
+    if (semantics_analysis_result)
+      return semantics_analysis_result;
+
+  } break;
+  }
+  return 0;
+}
+
+/*
+direct_declarator
+	: IDENTIFIER
+	| '(' declarator ')'
+	| direct_declarator '[' ']'
+	| direct_declarator '[' '*' ']'
+	| direct_declarator '[' STATIC type_qualifier_list assignment_expression ']'
+	| direct_declarator '[' STATIC assignment_expression ']'
+	| direct_declarator '[' type_qualifier_list '*' ']'
+	| direct_declarator '[' type_qualifier_list STATIC assignment_expression ']'
+	| direct_declarator '[' type_qualifier_list assignment_expression ']'
+	| direct_declarator '[' type_qualifier_list ']'
+	| direct_declarator '[' assignment_expression ']'
+	| direct_declarator '(' parameter_type_list ')'
+	| direct_declarator '(' ')'
+	| direct_declarator '(' identifier_list ')'
+	;
+*/
+int analyze_direct_declarator(std::shared_ptr<ast_node> direct_declarator, semantics_analysis_context &context) {
+
+  // 这里来解释一下 '(' declarator ')' 为了结合性.考虑 int* p[5]和int (*p)[5]的区别.
+  // 第一个p是一个数组,数组元素为int* 第二个p是指向int[5]的指针
+  switch (direct_declarator->node_sub_type) {
+  case NODE_TYPE_DIRECT_DECLARATOR_SUBTYPE_IDENTIFIER: {
+
+  } break;
+  case NODE_TYPE_DIRECT_DECLARATOR_SUBTYPE_LEFT_PARENTHESIS_DECLARATOR_RIGHT_PARENTHESIS: {
+
+  } break;
+  case NODE_TYPE_DIRECT_DECLARATOR_SUBTYPE_DIRECT_DECLARATOR_LEFT_BRACKET_RIGHT_BRACKET: {
+  } break;
+  case NODE_TYPE_DIRECT_DECLARATOR_SUBTYPE_DIRECT_DECLARATOR_LEFT_BRACKET_MUL_RIGHT_BRACKET:
+  case NODE_TYPE_DIRECT_DECLARATOR_SUBTYPE_DIRECT_DECLARATOR_LEFT_BRACKET_STATIC_TYPE_QUALIFIER_LIST_ASSIGNMENT_EXPRESSION_RIGHT_BRACKET:
+  case NODE_TYPE_DIRECT_DECLARATOR_SUBTYPE_DIRECT_DECLARATOR_LEFT_BRACKET_STATIC_ASSIGNMENT_EXPRESSION_RIGHT_BRACKET:
+  case NODE_TYPE_DIRECT_DECLARATOR_SUBTYPE_DIRECT_DECLARATOR_LEFT_BRACKET_TYPE_QUALIFIER_LIST_MUL_RIGHT_BRACKET:
+  case NODE_TYPE_DIRECT_DECLARATOR_SUBTYPE_DIRECT_DECLARATOR_LEFT_BRACKET_TYPE_QUALIFIER_LIST_STATIC_ASSIGNMENT_EXPRESSION_RIGHT_BRACKET:
+  case NODE_TYPE_DIRECT_DECLARATOR_SUBTYPE_DIRECT_DECLARATOR_LEFT_BRACKET_TYPE_QUALIFIER_LIST_ASSIGNMENT_EXPRESSION_RIGHT_BRACKET:
+    //gcc clang均不支持的语法
+    printf("%s:%d error:\n\tunsupported grammar in direct_declarator '%s'\n", input_file_name.c_str(),
+           direct_declarator->get_first_terminal_line_no(), direct_declarator->get_expression().c_str());
+    return 1;
+
+  case NODE_TYPE_DIRECT_DECLARATOR_SUBTYPE_DIRECT_DECLARATOR_LEFT_BRACKET_ASSIGNMENT_EXPRESSION_RIGHT_BRACKET: {
+  } break;
+  case NODE_TYPE_DIRECT_DECLARATOR_SUBTYPE_DIRECT_DECLARATOR_LEFT_PARENTHESIS_PARAMETER_TYPE_LIST_RIGHT_PARENTHESIS: {
+  } break;
+  case NODE_TYPE_DIRECT_DECLARATOR_SUBTYPE_DIRECT_DECLARATOR_LEFT_PARENTHESIS_RIGHT_PARENTHESIS: {
+  } break;
+  case NODE_TYPE_DIRECT_DECLARATOR_SUBTYPE_DIRECT_DECLARATOR_LEFT_PARENTHESIS_IDENTIFIER_LIST_RIGHT_PARENTHESIS: {
+  } break;
+  }
+
+  return 0;
+}
+
+
+/*
+pointer
+	: '*' type_qualifier_list pointer
+	| '*' type_qualifier_list
+	| '*' pointer
+	| '*'
+	;
+*/
+
+
+int analyze_pointer(std::shared_ptr<ast_node> pointer, semantics_analysis_context &context,
+                    std::shared_ptr<tsc_symbol> &derived_declarator_symbol,
+                    std::shared_ptr<tsc_symbol> &direct_declarator_symbol) {
+    return 0;
 }
 
 bool check_type_compatibility(std::shared_ptr<tsc_type> type1, std::shared_ptr<tsc_type> type2) {
@@ -2912,7 +3082,7 @@ void setup_type_system() {
   global_types::primitive_type_long_double->type_size = sizeof(long double);
 
   global_types::primitive_type_const_void->type_id = PRIMITIVE_TYPE_VOID;
-  //gcc extension sizeof(void)=1 clang say it's error
+  //gcc extension sizeof(void)=1 clang says it's error
 
   global_types::primitive_type_const_char->type_id = PRIMITIVE_TYPE_CHAR;
   global_types::primitive_type_const_char->type_size = sizeof(char);

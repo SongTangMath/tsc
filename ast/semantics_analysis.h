@@ -178,13 +178,24 @@ int analyze_specifier_qualifier_list(std::shared_ptr<ast_node> specifier_qualifi
                                      semantics_analysis_context &context);
 
 int analyze_struct_declaration_list(std::shared_ptr<ast_node> struct_declaration_list,
-                                     semantics_analysis_context &context, std::shared_ptr<tsc_symbol> &symbol);
-
-int analyze_struct_declaration(std::shared_ptr<ast_node> struct_declaration,
                                     semantics_analysis_context &context, std::shared_ptr<tsc_symbol> &symbol);
 
+int analyze_struct_declaration(std::shared_ptr<ast_node> struct_declaration, semantics_analysis_context &context,
+                               std::shared_ptr<tsc_symbol> &symbol);
+
 int analyze_struct_declarator_list(std::shared_ptr<ast_node> struct_declarator_list,
-                               semantics_analysis_context &context, std::shared_ptr<tsc_symbol> &symbol,std::shared_ptr<tsc_type> field_type);
+                                   semantics_analysis_context &context, std::shared_ptr<tsc_symbol> &symbol,
+                                   std::shared_ptr<tsc_symbol> &field_symbol);
 
+int analyze_struct_declarator(std::shared_ptr<ast_node> struct_declarator, semantics_analysis_context &context,
+                              std::shared_ptr<tsc_symbol> &symbol,
+                              std::shared_ptr<tsc_symbol> &struct_declarator_symbol);
 
+int analyze_declarator(std::shared_ptr<ast_node> declarator, semantics_analysis_context &context,
+                       std::shared_ptr<tsc_symbol> &declarator_symbol);
 
+int analyze_direct_declarator(std::shared_ptr<ast_node> direct_declarator, semantics_analysis_context &context);
+
+int analyze_pointer(std::shared_ptr<ast_node> pointer, semantics_analysis_context &context,
+                    std::shared_ptr<tsc_symbol> &derived_declarator_symbol,
+                    std::shared_ptr<tsc_symbol> &direct_declarator_symbol);

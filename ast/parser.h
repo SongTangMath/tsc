@@ -497,18 +497,7 @@ struct expression_value {
   };
 };
 
-struct tsc_type;
-struct tsc_field {
-    bool is_bit_field;
-    int bit_field_length;
-    bool is_anonymous;
-    //can be nullptr for anonymous fields
-    std::shared_ptr<std::string>field_identifier;
-    std::shared_ptr<tsc_type> type;
-    int offset;
-    size_t size;
-};
-
+struct tsc_symbol;
 
 struct tsc_type {
   bool const_type_qualifier_set = false;
@@ -523,14 +512,14 @@ struct tsc_type {
   // for struct union enum
   bool is_complete = true; // struct A; -> incomplete
   int type_id = -1;
-    int sub_type_id = -1;
+  int sub_type_id = -1;
   size_t type_size;
   //can be nullptr for incomplete array
   std::shared_ptr<size_t> array_length;
   //如果是指针则dereference后的type是underlying_type 数组同理
   std::shared_ptr<tsc_type> underlying_type;
   //for struct_union fields
-  std::vector<std::shared_ptr<tsc_field>>fields;
+  std::vector<std::shared_ptr<tsc_symbol>> fields;
 };
 struct tsc_memory_location {};
 struct tsc_symbol {
@@ -542,6 +531,13 @@ struct tsc_symbol {
   bool is_register = false;
 
   bool is_left_value;
+
+  bool is_anonymous = false;
+  bool is_bit_field;
+  int bit_field_length;
+  int offset;
+
+  //can be nullptr for anonymous fields or temporary variables
   std::shared_ptr<std::string> identifier;
   //if this field is present, we can use & operator to get symbol's memory location
   std::shared_ptr<tsc_memory_location> memory_location;
@@ -549,8 +545,7 @@ struct tsc_symbol {
   std::shared_ptr<expression_value> value;
 
   int operator_id;
-  std::vector<std::shared_ptr<tsc_symbol>>operands;
-
+  std::vector<std::shared_ptr<tsc_symbol>> operands;
 };
 
 struct global_types {
