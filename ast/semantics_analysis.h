@@ -21,7 +21,8 @@ enum {
   SCALAR_TYPE_POINTER,
   SCALAR_TYPE_ARRAY,
   SUB_TYPE_STRUCT,
-  SUB_TYPE_UNION
+  SUB_TYPE_UNION,
+  TYPE_FUNCTION
 };
 
 enum {
@@ -173,7 +174,8 @@ int construct_binary_expression_symbol(std::shared_ptr<ast_node> parent, int bin
 int construct_unary_expression_symbol(std::shared_ptr<ast_node> parent, int unary_operator,
                                       std::shared_ptr<ast_node> operand);
 
-int analyze_init_declarator_list(std::shared_ptr<ast_node> init_declarator_list, semantics_analysis_context &context);
+int analyze_init_declarator_list(std::shared_ptr<ast_node> init_declarator_list, semantics_analysis_context &context,
+                                 std::shared_ptr<tsc_symbol> &symbol);
 int analyze_specifier_qualifier_list(std::shared_ptr<ast_node> specifier_qualifier_list,
                                      semantics_analysis_context &context);
 
@@ -188,14 +190,25 @@ int analyze_struct_declarator_list(std::shared_ptr<ast_node> struct_declarator_l
                                    std::shared_ptr<tsc_symbol> &field_symbol);
 
 int analyze_struct_declarator(std::shared_ptr<ast_node> struct_declarator, semantics_analysis_context &context,
-                              std::shared_ptr<tsc_symbol> &symbol,
-                              std::shared_ptr<tsc_symbol> &struct_declarator_symbol);
+                              std::shared_ptr<tsc_symbol> &symbol, std::shared_ptr<ast_node> &out_identifier_node);
 
 int analyze_declarator(std::shared_ptr<ast_node> declarator, semantics_analysis_context &context,
-                       std::shared_ptr<tsc_symbol> &declarator_symbol);
+                       std::shared_ptr<ast_node> &out_identifier_node);
 
-int analyze_direct_declarator(std::shared_ptr<ast_node> direct_declarator, semantics_analysis_context &context);
+int analyze_direct_declarator(std::shared_ptr<ast_node> direct_declarator, semantics_analysis_context &context,
+                              std::shared_ptr<ast_node> &out_identifier_node);
 
 int analyze_pointer(std::shared_ptr<ast_node> pointer, semantics_analysis_context &context,
                     std::shared_ptr<tsc_symbol> &derived_declarator_symbol,
                     std::shared_ptr<tsc_symbol> &direct_declarator_symbol);
+
+int analyze_parameter_type_list(std::shared_ptr<ast_node> parameter_type_list, semantics_analysis_context &context);
+
+int analyze_type_qualifier_list(std::shared_ptr<ast_node> type_qualifier_list, semantics_analysis_context &context,
+                                std::shared_ptr<tsc_symbol> &symbol);
+
+int analyze_init_declarator(std::shared_ptr<ast_node> init_declarator, semantics_analysis_context &context,
+                            std::shared_ptr<tsc_symbol> &symbol, std::shared_ptr<ast_node> &out_identifier_node);
+
+int add_declarator_identifier_to_symbol_table(semantics_analysis_context &context,
+                             std::shared_ptr<ast_node> declarator_identifier_node);

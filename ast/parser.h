@@ -498,6 +498,7 @@ struct expression_value {
 };
 
 struct tsc_symbol;
+struct tsc_function_signature;
 
 struct tsc_type {
   bool const_type_qualifier_set = false;
@@ -515,9 +516,10 @@ struct tsc_type {
   int sub_type_id = -1;
   size_t type_size;
   //can be nullptr for incomplete array
-  std::shared_ptr<size_t> array_length;
+  std::shared_ptr<int> array_length;
   //如果是指针则dereference后的type是underlying_type 数组同理
   std::shared_ptr<tsc_type> underlying_type;
+  std::shared_ptr<tsc_function_signature> function_signature;
   //for struct_union fields
   std::vector<std::shared_ptr<tsc_symbol>> fields;
 };
@@ -546,6 +548,17 @@ struct tsc_symbol {
 
   int operator_id;
   std::vector<std::shared_ptr<tsc_symbol>> operands;
+};
+
+struct tsc_function_signature {
+  // for K&R old style function declaration has_proto=false
+  bool has_proto;
+  // 是否有省略号(可变参数)
+  bool has_ellipse;
+  std::shared_ptr<tsc_type> return_type;
+  std::vector<std::shared_ptr<tsc_symbol>> arguments;
+  // for K&R style function definition
+  std::vector<std::string> identifiers;
 };
 
 struct global_types {
@@ -583,6 +596,7 @@ struct global_types {
 };
 
 std::shared_ptr<tsc_type> construct_pointer_to(std::shared_ptr<tsc_type> type);
+std::shared_ptr<tsc_type> construct_array_of(std::shared_ptr<tsc_type> type);
 
 //语法树节点
 

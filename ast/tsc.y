@@ -1050,7 +1050,7 @@ declaration_specifiers
     }
 	;
 
-init_declarator_listinit_declarator_list
+init_declarator_list
 	: init_declarator
 	{
         ast_node node;
