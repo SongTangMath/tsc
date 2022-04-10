@@ -106,6 +106,9 @@ int analyze_struct_or_union_specifier(std::shared_ptr<ast_node> struct_or_union_
 //  例如type1是声明struct A; type2是定义struct A{...};则一致.如果type2是个union那么不一致
 bool check_type_compatibility(std::shared_ptr<tsc_type> type1, std::shared_ptr<tsc_type> type2);
 
+bool check_same_type(std::shared_ptr<tsc_type> type1, std::shared_ptr<tsc_type> type2);
+bool check_complete_type(std::shared_ptr<tsc_type> type);
+
 int analyze_enumerator_list(std::shared_ptr<ast_node> enumerator_list, semantics_analysis_context &context,
                             std::shared_ptr<tsc_symbol> &symbol);
 int analyze_enumerator(std::shared_ptr<ast_node> enumerator, semantics_analysis_context &context, int next_value,
@@ -210,5 +213,13 @@ int analyze_type_qualifier_list(std::shared_ptr<ast_node> type_qualifier_list, s
 int analyze_init_declarator(std::shared_ptr<ast_node> init_declarator, semantics_analysis_context &context,
                             std::shared_ptr<tsc_symbol> &symbol, std::shared_ptr<ast_node> &out_identifier_node);
 
-int add_declarator_identifier_to_symbol_table(semantics_analysis_context &context,
-                             std::shared_ptr<ast_node> declarator_identifier_node);
+int add_declarator_identifier_to_symbol_table(std::shared_ptr<ast_node> init_declarator,
+                                              semantics_analysis_context &context,
+                                              std::shared_ptr<ast_node> declarator_identifier_node);
+
+int add_type_name_to_symbol_table(std::shared_ptr<tsc_symbol> &symbol, semantics_analysis_context &context,
+                                  std::shared_ptr<ast_node> identifier_node);
+
+int add_nested_anonymous_struct_fields_to_parent_struct(std::shared_ptr<tsc_symbol> &parent_struct_symbol,
+                                                        std::shared_ptr<tsc_symbol> &child_struct_symbol,
+                                                        semantics_analysis_context &context);

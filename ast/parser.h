@@ -505,7 +505,9 @@ struct tsc_type {
   bool restrict_type_qualifier_set = false;
   bool volatile_type_qualifier_set = false;
 
-  std::shared_ptr<std::string> name;
+  std::shared_ptr<std::string> internal_name;
+  // nullptr for primitive types and anonymous struct_union_enum
+    std::shared_ptr<std::string> name;
   // for functions
   bool is_inline = false;
   bool is_noreturn = false;

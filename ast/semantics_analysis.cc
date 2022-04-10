@@ -1,5 +1,5 @@
 #include "semantics_analysis.h"
-
+#include <set>
 /*
 
 translation_unit
@@ -74,8 +74,8 @@ int analyze_declaration(std::shared_ptr<ast_node> declaration, semantics_analysi
       return semantics_analysis_result;
     //如果没有init_declarator_list说明是声明一个类型如struct A{...};此时如果不是匿名enum_struct_union需要加入tags
     // primitive类型也没有name 这里如果之前已经有过同名的struct union enum了,需要检查之前的是否是incomplete.如果是才用当前定义覆盖.
-    if (symbol->type->name)
-      context.current_symbol_table_node->struct_union_enum_names[*symbol->type->name] = symbol->type;
+    if (symbol->type->internal_name)
+      context.current_symbol_table_node->struct_union_enum_names[*symbol->type->internal_name] = symbol->type;
 
   } break;
   case NODE_TYPE_DECLARATION_SUBTYPE_DECLARATION_SPECIFIERS_INIT_DECLARATOR_LIST_SEMI_COLON: {
@@ -826,7 +826,7 @@ int analyze_enum_specifier(std::shared_ptr<ast_node> enum_specifier, semantics_a
 
   std::shared_ptr<ast_node> identifier_node; // enum A{...}; identifier=A
   std::shared_ptr<ast_node> enumerator_list;
-
+  int semantics_analysis_result = 0;
   switch (enum_specifier->node_sub_type) {
   case NODE_TYPE_ENUM_SPECIFIER_SUBTYPE_ENUM_LEFT_BRACE_ENUMATOR_LIST_RIGHT_BRACE:
   case NODE_TYPE_ENUM_SPECIFIER_SUBTYPE_ENUM_LEFT_BRACE_ENUMATOR_LIST_COMMA_RIGHT_BRACE:
@@ -848,40 +848,89 @@ int analyze_enum_specifier(std::shared_ptr<ast_node> enum_specifier, semantics_a
   }
 
   std::shared_ptr<symbol_table_node> current_symbol_table_node = context.current_symbol_table_node;
-  std::string identifier;
 
   if (identifier_node) {
-    identifier = *identifier_node->lexeme;
-    // 检查符号表中是否已经有同名的符号
-    for (std::map<std::string, std::shared_ptr<tsc_type>>::iterator it =
-             context.current_symbol_table_node->struct_union_enum_names.begin();
-         it != context.current_symbol_table_node->struct_union_enum_names.end(); it++) {
-      //可以多次声明但是只能定义1次.检查之前是否已经有complete的declaration.这里实际上只是检查了是否声明了其它类型的同名tag
-      // 如 struct A; union A;->error
-      if (it->first == identifier) {
-        if (!check_type_compatibility(it->second, symbol->type)) {
-          printf("%s:%d error:\n\tincorrect tag '%s'\n", input_file_name.c_str(),
-                 identifier_node->get_first_terminal_line_no(), identifier.c_str());
-          return 1;
-        }
-        //之前可能已经有形如enum A;的incomplete declaration则用当前的declaration覆盖它(当前的declaration是否complete都可以覆盖)
-        if (!it->second->is_complete)
-          it->second = symbol->type;
-        //之前已经有一个complete声明了,当前的必须是形如enum A;的声明否则是 redefinition
-        else if (symbol->type->is_complete) {
-          printf("%s:%d error:\n\tredefinition tag '%s'\n", input_file_name.c_str(),
-                 identifier_node->get_first_terminal_line_no(), identifier.c_str());
-          return 1;
-        }
-      }
-    }
-    symbol->type->name = identifier_node->lexeme;
+    semantics_analysis_result = add_type_name_to_symbol_table(symbol, context, identifier_node);
+    if (semantics_analysis_result)
+      return semantics_analysis_result;
+  }
+
+  else {
+    symbol->type->internal_name = std::make_shared<std::string>("enum <anonymous>");
   }
 
   if (enumerator_list)
     return analyze_enumerator_list(enumerator_list, context, symbol);
   else
     return 0;
+}
+
+int add_type_name_to_symbol_table(std::shared_ptr<tsc_symbol> &symbol, semantics_analysis_context &context,
+                                  std::shared_ptr<ast_node> identifier_node) {
+  std::string identifier = *identifier_node->lexeme;
+  std::string type_name_prefix;
+  switch (symbol->type->type_id) {
+  case PRIMITIVE_TYPE_ENUM:
+    type_name_prefix = "enum ";
+    break;
+  case RECORD_TYPE_STRUCT_OR_UNION: {
+    switch (symbol->type->sub_type_id) {
+    case SUB_TYPE_STRUCT:
+      type_name_prefix = "struct ";
+      break;
+    case SUB_TYPE_UNION:
+      type_name_prefix = "union ";
+      break;
+    }
+  }
+  }
+  symbol->type->internal_name = std::make_shared<std::string>(type_name_prefix + identifier);
+  symbol->type->name = symbol->type->internal_name;
+  // 检查符号表中是否已经有同名的符号
+  for (std::map<std::string, std::shared_ptr<tsc_type>>::iterator it =
+           context.current_symbol_table_node->struct_union_enum_names.begin();
+       it != context.current_symbol_table_node->struct_union_enum_names.end(); it++) {
+    //可以多次声明但是只能定义1次.检查之前是否已经有complete的declaration.这里实际上只是检查了是否声明了其它类型的同名tag
+    // 如 struct A; union A;->error
+    if (it->first == identifier) {
+      if (!check_type_compatibility(it->second, symbol->type)) {
+        printf("%s:%d error:\n\tincorrect tag '%s'\n", input_file_name.c_str(),
+               identifier_node->get_first_terminal_line_no(), identifier.c_str());
+        return 1;
+      }
+      //之前可能已经有形如enum A;的incomplete declaration则用当前的declaration覆盖它(当前的declaration是否complete都可以覆盖)
+      if (!it->second->is_complete)
+        it->second = symbol->type;
+      //之前已经有一个complete声明了,当前的必须是形如enum A;的声明否则是 redefinition
+      else if (symbol->type->is_complete) {
+        printf("%s:%d error:\n\tredefinition tag '%s'\n", input_file_name.c_str(),
+               identifier_node->get_first_terminal_line_no(), identifier.c_str());
+        return 1;
+      }
+    }
+  }
+
+  return 0;
+}
+
+int add_nested_anonymous_struct_fields_to_parent_struct(std::shared_ptr<tsc_symbol> &parent_struct_symbol,
+                                                        std::shared_ptr<tsc_symbol> &child_struct_symbol,
+                                                        semantics_analysis_context &context) {
+
+  int semantics_analysis_result = 0;
+  for (std::shared_ptr<tsc_symbol> child_field_symbol : child_struct_symbol->type->fields) {
+    std::shared_ptr<tsc_type> type = child_field_symbol->type;
+    if (type->type_id == RECORD_TYPE_STRUCT_OR_UNION && !type->name) {
+      semantics_analysis_result =
+          add_nested_anonymous_struct_fields_to_parent_struct(parent_struct_symbol, child_field_symbol, context);
+      if (semantics_analysis_result)
+        return semantics_analysis_result;
+    } else {
+      parent_struct_symbol->type->fields.push_back(child_field_symbol);
+    }
+  }
+
+  return semantics_analysis_result;
 }
 
 /*
@@ -894,11 +943,11 @@ struct_or_union_specifier
 
 int analyze_struct_or_union_specifier(std::shared_ptr<ast_node> struct_or_union_specifier,
                                       semantics_analysis_context &context, std::shared_ptr<tsc_symbol> &symbol) {
-
+  // todo calculate size of struct
   std::shared_ptr<ast_node> struct_or_union = struct_or_union_specifier->items[0];
   std::shared_ptr<ast_node> identifier_node;
   std::shared_ptr<ast_node> struct_declaration_list;
-
+  int semantics_analysis_result = 0;
   switch (struct_or_union->node_sub_type) {
   case NODE_TYPE_STRUCT_OR_UNION_SUBTYPE_STRUCT:
     symbol->type->sub_type_id = SUB_TYPE_STRUCT;
@@ -931,28 +980,22 @@ int analyze_struct_or_union_specifier(std::shared_ptr<ast_node> struct_or_union_
   }
 
   if (identifier_node) {
-    std::string identifier = *identifier_node->lexeme;
-    // 检查符号表中是否已经有同名的符号
-    for (std::map<std::string, std::shared_ptr<tsc_type>>::iterator it =
-             context.current_symbol_table_node->struct_union_enum_names.begin();
-         it != context.current_symbol_table_node->struct_union_enum_names.end(); it++) {
-      //可以多次声明但是只能定义1次.检查之前是否已经有complete的declaration.这里的检查逻辑与enum一致
-      if (it->first == identifier) {
-        if (!check_type_compatibility(it->second, symbol->type)) {
-          printf("%s:%d error:\n\tincorrect tag '%s'\n", input_file_name.c_str(),
-                 identifier_node->get_first_terminal_line_no(), identifier.c_str());
-          return 1;
-        }
-        if (!it->second->is_complete)
-          it->second = symbol->type;
-        else if (symbol->type->is_complete) {
-          printf("%s:%d error:\n\tredefinition tag '%s'\n", input_file_name.c_str(),
-                 identifier_node->get_first_terminal_line_no(), identifier.c_str());
-          return 1;
-        }
-      }
+    semantics_analysis_result = add_type_name_to_symbol_table(symbol, context, identifier_node);
+    if (semantics_analysis_result)
+      return semantics_analysis_result;
+  }
+
+  else {
+    std::string type_name_prefix;
+    switch (symbol->type->sub_type_id) {
+    case SUB_TYPE_STRUCT:
+      type_name_prefix = "struct ";
+      break;
+    case SUB_TYPE_UNION:
+      type_name_prefix = "union ";
+      break;
     }
-    symbol->type->name = identifier_node->lexeme;
+    symbol->type->internal_name = std::make_shared<std::string>(type_name_prefix + "<anonymous>");
   }
 
   if (struct_declaration_list)
@@ -1004,8 +1047,11 @@ struct_declaration
 int analyze_struct_declaration(std::shared_ptr<ast_node> struct_declaration, semantics_analysis_context &context,
                                std::shared_ptr<tsc_symbol> &symbol) {
   //每个declarator都需要加入fields.一个struct_declaration可能有多个declarator如int a,b;
+  // 如果这个 specifier_qualifier_list 是一个匿名的 struct_union 且没有declarator 则它的成员要加入外层struct的成员中.
+  // struct A{struct{int x;}}; -> struct A has a member 'x'
+  // struct A{struct{int x;}y;}; -> struct A has a member 'y' but does not have a member 'x'
   int semantics_analysis_result;
-
+  //todo calculate offset and size of struct
   switch (struct_declaration->node_sub_type) {
   case NODE_TYPE_STRUCT_DECLARATION_SUBTYPE_SPECIFIER_QUALIFIER_LIST_SEMI_COLON: {
     std::shared_ptr<ast_node> specifier_qualifier_list = struct_declaration->items[0];
@@ -1013,8 +1059,18 @@ int analyze_struct_declaration(std::shared_ptr<ast_node> struct_declaration, sem
     semantics_analysis_result = analyze_specifier_qualifier_list(specifier_qualifier_list, context);
     if (semantics_analysis_result)
       return semantics_analysis_result;
-    printf("%s:%d warning:\n\t declaration '%s' does not declare anything\n", input_file_name.c_str(),
-           struct_declaration->get_first_terminal_line_no(), struct_declaration->get_expression().c_str());
+    std::shared_ptr<tsc_type> type = specifier_qualifier_list->symbol->type;
+    if (type->type_id == RECORD_TYPE_STRUCT_OR_UNION && !type->name) {
+      semantics_analysis_result =
+          add_nested_anonymous_struct_fields_to_parent_struct(symbol, specifier_qualifier_list->symbol, context);
+      if (semantics_analysis_result)
+        return semantics_analysis_result;
+    }
+
+    else {
+      printf("%s:%d warning:\n\t declaration '%s' does not declare anything\n", input_file_name.c_str(),
+             struct_declaration->get_first_terminal_line_no(), struct_declaration->get_expression().c_str());
+    }
 
   } break;
   case NODE_TYPE_STRUCT_DECLARATION_SUBTYPE_SPECIFIER_QUALIFIER_LIST_STRUT_DECLARATOR_LIST_SEMI_COLON: {
@@ -1036,6 +1092,19 @@ int analyze_struct_declaration(std::shared_ptr<ast_node> struct_declaration, sem
     printf("%s:%d error:\n\tstatic_assert_declaration not supported\n", input_file_name.c_str(),
            struct_declaration->get_first_terminal_line_no());
     return 1;
+  }
+  //所有fields添加完毕,校验是否有重名的字段
+  std::set<std::string> field_identifiers;
+  for (std::shared_ptr<tsc_symbol> field_symbol : symbol->type->fields) {
+    if (!field_symbol->identifier)
+      continue;
+    if (field_identifiers.find(*field_symbol->identifier) != field_identifiers.end()) {
+      printf("%s:%d error:\n\tduplicate member '%s'\n", input_file_name.c_str(),
+             struct_declaration->get_first_terminal_line_no(), field_symbol->identifier->c_str());
+      return 1;
+    } else {
+      field_identifiers.insert(*field_symbol->identifier);
+    }
   }
 
   return 0;
@@ -1075,7 +1144,7 @@ int analyze_struct_declarator_list(std::shared_ptr<ast_node> struct_declarator_l
 
     if (semantics_analysis_result)
       return semantics_analysis_result;
-    symbol->type->fields.push_back(field_symbol);
+    symbol->type->fields.push_back(struct_declarator->symbol);
   }
 
   return 0;
@@ -1092,6 +1161,7 @@ struct_declarator
 int analyze_struct_declarator(std::shared_ptr<ast_node> struct_declarator, semantics_analysis_context &context,
                               std::shared_ptr<tsc_symbol> &symbol, std::shared_ptr<ast_node> &out_identifier_node) {
   // declarator->symbol的type字段已填好
+
   std::shared_ptr<tsc_symbol> struct_declarator_symbol = struct_declarator->symbol;
   int semantics_analysis_result;
   std::shared_ptr<ast_node> constant_expression;
@@ -1113,6 +1183,7 @@ int analyze_struct_declarator(std::shared_ptr<ast_node> struct_declarator, seman
     struct_declarator_symbol->is_anonymous = false;
     struct_declarator_symbol->is_bit_field = false;
     declarator = struct_declarator->items[0];
+
   } break;
   }
 
@@ -1133,6 +1204,13 @@ int analyze_struct_declarator(std::shared_ptr<ast_node> struct_declarator, seman
     semantics_analysis_result = analyze_declarator(declarator, context, out_identifier_node);
     if (semantics_analysis_result)
       return semantics_analysis_result;
+    struct_declarator_symbol->identifier = out_identifier_node->lexeme;
+  }
+
+  if (!check_complete_type(out_identifier_node->symbol->type)) {
+    printf("%s:%d error:\n\tstorage size of '%s' isn’t known\n", input_file_name.c_str(),
+           struct_declarator->get_first_terminal_line_no(), out_identifier_node->symbol->identifier->c_str());
+    return 1;
   }
 
   return 0;
@@ -1217,7 +1295,7 @@ int analyze_direct_declarator(std::shared_ptr<ast_node> direct_declarator, seman
   case NODE_TYPE_DIRECT_DECLARATOR_SUBTYPE_IDENTIFIER: {
     out_identifier_node = direct_declarator->items[0];
     direct_declarator->symbol->identifier = out_identifier_node->lexeme;
-    out_identifier_node->symbol=direct_declarator->symbol;
+    out_identifier_node->symbol = direct_declarator->symbol;
   } break;
   case NODE_TYPE_DIRECT_DECLARATOR_SUBTYPE_LEFT_PARENTHESIS_DECLARATOR_RIGHT_PARENTHESIS: {
     std::shared_ptr<ast_node> next_direct_declarator = direct_declarator->items[0];
@@ -1443,6 +1521,32 @@ bool check_type_compatibility(std::shared_ptr<tsc_type> type1, std::shared_ptr<t
   if (!type1->is_complete || !type2->is_complete)
     return true;
   return false;
+}
+
+bool check_same_type(std::shared_ptr<tsc_type> type1, std::shared_ptr<tsc_type> type2) {
+  if (type1->type_id != type2->type_id)
+    return false;
+  if (type1->const_type_qualifier_set != type2->const_type_qualifier_set)
+    return false;
+  //全局变量不应有register所以这里不检查
+
+  switch (type1->type_id) {
+  case RECORD_TYPE_STRUCT_OR_UNION:
+    return type1 == type2;
+  case SCALAR_TYPE_POINTER:
+  case SCALAR_TYPE_ARRAY:
+    // 全局变量的声明中第一次可以是incomplete array(长度不定)
+    return check_same_type(type1->underlying_type, type2->underlying_type);
+  case TYPE_FUNCTION:
+    //todo check function
+    break;
+  }
+  return true;
+}
+
+bool check_complete_type(std::shared_ptr<tsc_type> type) {
+  return !(type == global_types::primitive_type_void || type == global_types::primitive_type_const_void ||
+           !type->is_complete);
 }
 
 /*
@@ -2318,17 +2422,11 @@ int analyze_unary_expression(std::shared_ptr<ast_node> unary_expression, semanti
     semantics_analysis_result = analyze_unary_expression(next_unary_expression, context);
     if (semantics_analysis_result)
       return semantics_analysis_result;
-    if (next_unary_expression->symbol->type == global_types::primitive_type_void ||
-        next_unary_expression->symbol->type == global_types::primitive_type_const_void) {
-      printf("%s:%d error:\n\tinvalid application of 'sizeof' to an incomplete type 'void' in unary_expression\n",
-             input_file_name.c_str(), unary_expression->get_first_terminal_line_no());
-      return 1;
-    }
 
-    if (!next_unary_expression->symbol->type->is_complete) {
+    if (!check_complete_type(unary_expression->symbol->type)) {
       printf("%s:%d error:\n\tinvalid application of 'sizeof' to an incomplete type '%s' in unary_expression\n",
              input_file_name.c_str(), unary_expression->get_first_terminal_line_no(),
-             next_unary_expression->symbol->type->name->c_str());
+             next_unary_expression->symbol->type->internal_name->c_str());
       return 1;
     }
     unary_expression->symbol = std::make_shared<tsc_symbol>();
@@ -2341,7 +2439,7 @@ int analyze_unary_expression(std::shared_ptr<ast_node> unary_expression, semanti
   break;
   case NODE_TYPE_UNARY_EXPRESSION_SUBTYPE_SIZEOF_LEFT_PARENTHESIS_TYPE_NAME_RIGHT_PARENTHESIS: {
     std::shared_ptr<ast_node> type_name = unary_expression->items[2];
-
+    // sizeof 中可以声明类型,会加入符号表 sizeof (struct A{}); struct A a; ->OK
     semantics_analysis_result = analyze_type_name(type_name, context);
     if (semantics_analysis_result)
       return semantics_analysis_result;
@@ -2353,7 +2451,7 @@ int analyze_unary_expression(std::shared_ptr<ast_node> unary_expression, semanti
     }
     //如果是enum struct union必须是complete type
     if (is_struct_union_enum_number(type_name)) {
-      std::string type_name_identifier = *type_out->name;
+      std::string type_name_identifier = *type_out->internal_name;
       std::shared_ptr<tsc_type> type = lookup_type(context.current_symbol_table_node, type_name_identifier, true);
       if (!type) {
         printf("%s:%d error:\n\ttag '%s' not found in unary_expression\n", input_file_name.c_str(),
@@ -3174,14 +3272,20 @@ int analyze_init_declarator(std::shared_ptr<ast_node> init_declarator, semantics
     if (semantics_analysis_result)
       return semantics_analysis_result;
     // extern 与 initializer 不能同时存在
-    if(out_identifier_node->symbol->is_extern){
-        printf("%s:%d error:\n\t'%s' has both 'extern' and initializer\n", input_file_name.c_str(),
-               init_declarator->get_first_terminal_line_no(),out_identifier_node->symbol->identifier->c_str());
-        return 1;
+    if (out_identifier_node->symbol->is_extern) {
+      printf("%s:%d error:\n\t'%s' has both 'extern' and initializer\n", input_file_name.c_str(),
+             init_declarator->get_first_terminal_line_no(), out_identifier_node->symbol->identifier->c_str());
+      return 1;
+    }
+    if (!check_complete_type(out_identifier_node->symbol->type)) {
+      printf("%s:%d error:\n\tstorage size of '%s' isn’t known\n", input_file_name.c_str(),
+             init_declarator->get_first_terminal_line_no(), out_identifier_node->symbol->identifier->c_str());
+      return 1;
     }
 
     //检查当前作用域是否已经定义了同名符号.然后在解析initializer就需要加入符号表以允许形如 int a=a^a;的初始化(等价于int a=0)
-    semantics_analysis_result = add_declarator_identifier_to_symbol_table(context, out_identifier_node);
+    semantics_analysis_result =
+        add_declarator_identifier_to_symbol_table(init_declarator, context, out_identifier_node);
     if (semantics_analysis_result)
       return semantics_analysis_result;
 
@@ -3191,13 +3295,18 @@ int analyze_init_declarator(std::shared_ptr<ast_node> init_declarator, semantics
   break;
   case NODE_TYPE_INIT_DECLARATOR_SUBTYPE_DECLARATOR: {
     std::shared_ptr<ast_node> declarator = init_declarator->items[0];
-    declarator->symbol = std::make_shared<tsc_symbol>();
-    declarator->symbol->type = std::make_shared<tsc_type>(*symbol->type);
+    declarator->symbol = std::make_shared<tsc_symbol>(*symbol);
     semantics_analysis_result = analyze_declarator(declarator, context, out_identifier_node);
     if (semantics_analysis_result)
       return semantics_analysis_result;
 
-    semantics_analysis_result = add_declarator_identifier_to_symbol_table(context, out_identifier_node);
+    if (!check_complete_type(out_identifier_node->symbol->type)) {
+      printf("%s:%d error:\n\tstorage size of '%s' isn’t known\n", input_file_name.c_str(),
+             init_declarator->get_first_terminal_line_no(), out_identifier_node->symbol->identifier->c_str());
+      return 1;
+    }
+    semantics_analysis_result =
+        add_declarator_identifier_to_symbol_table(init_declarator, context, out_identifier_node);
     if (semantics_analysis_result)
       return semantics_analysis_result;
 
@@ -3207,13 +3316,62 @@ int analyze_init_declarator(std::shared_ptr<ast_node> init_declarator, semantics
   return semantics_analysis_result;
 }
 
-int add_declarator_identifier_to_symbol_table(semantics_analysis_context &context,
+int add_declarator_identifier_to_symbol_table(std::shared_ptr<ast_node> init_declarator,
+                                              semantics_analysis_context &context,
                                               std::shared_ptr<ast_node> declarator_identifier_node) {
-    // 对于 global variable 可以重复声明.多次声明的时候类型必须一致如
-    // int a; int a; ->OK
-    // extern int a; int a; ->OK
-    // const int a; int a; ->error
-    // 但是局部变量不行 redeclaration of 'a' with no linkage
+  // 对于 global variable 可以重复声明.多次声明的时候类型必须一致如
+  // int a; int a; ->OK
+  // extern int a; int a; ->OK 根据gcc的测试此时实际上生效的是extern int a; 汇编文件中没有'a'这个 global 符号
+  // const int a; int a; ->error
+  // 但是局部变量不行 redeclaration of 'a' with no linkage
+  std::shared_ptr<tsc_symbol> symbol = declarator_identifier_node->symbol;
+  std::string identifier = *symbol->identifier;
+  bool found_same_global_identifier = false;
+  for (std::map<std::string, std::shared_ptr<tsc_symbol>>::iterator it =
+           context.current_symbol_table_node->identifier_and_symbols.begin();
+       it != context.current_symbol_table_node->identifier_and_symbols.end(); it++) {
+    //可以多次声明但是只能定义1次.检查之前是否已经有complete的declaration.这里实际上只是检查了是否声明了其它类型的同名tag
+    // 如 struct A; union A;->error
+    if (it->first == identifier) {
+      if (!context.current_symbol_table_node->parent) {
+        //全局变量的声明允许相同. type qualifier必须一致. storage class specifier以首次声明为准.另外类型必须一致
+        //全局变量不能是register的.这里的报错信息参考gcc
+        found_same_global_identifier = true;
+        if (symbol->is_register) {
+          printf("%s:%d error:\n\tregister internal_name not specified for '%s'\n", input_file_name.c_str(),
+                 init_declarator->get_first_terminal_line_no(), identifier.c_str());
+          return 1;
+        }
+        //restrict则必须是指针
+        if (symbol->type->restrict_type_qualifier_set && symbol->type->type_id != SCALAR_TYPE_POINTER) {
+          printf("%s:%d error:\n\tinvalid use of restrict for '%s' d\n", input_file_name.c_str(),
+                 init_declarator->get_first_terminal_line_no(), identifier.c_str());
+          return 1;
+        }
+
+        if (!check_same_type(it->second->type, symbol->type)) {
+          printf("%s:%d error:\n\tconflicting types for '%s'\n", input_file_name.c_str(),
+                 init_declarator->get_first_terminal_line_no(), identifier.c_str());
+          return 1;
+        }
+      } else {
+        //局部变量不可同名.实际上gcc对于两个同名变量的报错更精细一些.考虑是否有一个是extern的.
+        printf("%s:%d error:\n\tredeclaration of identifier '%s'\n", input_file_name.c_str(),
+               init_declarator->get_first_terminal_line_no(), identifier.c_str());
+        return 1;
+      }
+    }
+  }
+
+  if (!context.current_symbol_table_node->parent) {
+    //全局变量且未找到同名的,将当前符号加入符号表
+    if (!found_same_global_identifier)
+      context.current_symbol_table_node->identifier_and_symbols[identifier] = symbol;
+
+  } else {
+    //局部变量之前已经检查过不存在同名因此直接加入
+    context.current_symbol_table_node->identifier_and_symbols[identifier] = symbol;
+  }
   return 0;
 }
 
@@ -3308,86 +3466,115 @@ void setup_type_system() {
   global_types::primitive_type_const_long_double = std::make_shared<tsc_type>();
 
   global_types::primitive_type_void->type_id = PRIMITIVE_TYPE_VOID;
+  global_types::primitive_type_void->internal_name = std::make_shared<std::string>("void");
 
   global_types::primitive_type_char->type_id = PRIMITIVE_TYPE_CHAR;
+  global_types::primitive_type_char->internal_name = std::make_shared<std::string>("char");
   global_types::primitive_type_char->type_size = sizeof(char);
 
   global_types::primitive_type_unsigned_char->type_id = PRIMITIVE_TYPE_UNSIGNED_CHAR;
+  global_types::primitive_type_unsigned_char->internal_name = std::make_shared<std::string>("unsigned char");
   global_types::primitive_type_unsigned_char->type_size = sizeof(unsigned char);
 
   global_types::primitive_type_short->type_id = PRIMITIVE_TYPE_SHORT;
+  global_types::primitive_type_short->internal_name = std::make_shared<std::string>("short");
   global_types::primitive_type_short->type_size = sizeof(short);
 
   global_types::primitive_type_unsigned_short->type_id = PRIMITIVE_TYPE_UNSIGNED_SHORT;
+  global_types::primitive_type_unsigned_short->internal_name = std::make_shared<std::string>("unsigned short");
   global_types::primitive_type_unsigned_short->type_size = sizeof(unsigned short);
 
   global_types::primitive_type_int->type_id = PRIMITIVE_TYPE_INT;
+  global_types::primitive_type_int->internal_name = std::make_shared<std::string>("int");
   global_types::primitive_type_int->type_size = sizeof(int);
 
   global_types::primitive_type_unsigned_int->type_id = PRIMITIVE_TYPE_UNSIGNED_INT;
+  global_types::primitive_type_unsigned_int->internal_name = std::make_shared<std::string>("unsigned int");
   global_types::primitive_type_unsigned_int->type_size = sizeof(unsigned int);
 
   global_types::primitive_type_long->type_id = PRIMITIVE_TYPE_LONG;
+  global_types::primitive_type_long->internal_name = std::make_shared<std::string>("long");
   global_types::primitive_type_long->type_size = sizeof(long);
 
   global_types::primitive_type_unsigned_long->type_id = PRIMITIVE_TYPE_UNSIGNED_LONG;
+  global_types::primitive_type_unsigned_long->internal_name = std::make_shared<std::string>("unsigned long");
   global_types::primitive_type_unsigned_long->type_size = sizeof(unsigned long);
 
   global_types::primitive_type_long_long->type_id = PRIMITIVE_TYPE_LONG_LONG;
+  global_types::primitive_type_long_long->internal_name = std::make_shared<std::string>("long long");
   global_types::primitive_type_long_long->type_size = sizeof(long long);
 
   global_types::primitive_type_unsigned_long_long->type_id = PRIMITIVE_TYPE_UNSIGNED_LONG_LONG;
+  global_types::primitive_type_unsigned_long_long->internal_name = std::make_shared<std::string>("unsigned long long");
   global_types::primitive_type_unsigned_long_long->type_size = sizeof(unsigned long long);
 
   global_types::primitive_type_float->type_id = PRIMITIVE_TYPE_FLOAT;
+  global_types::primitive_type_float->internal_name = std::make_shared<std::string>("float");
   global_types::primitive_type_float->type_size = sizeof(float);
 
   global_types::primitive_type_double->type_id = PRIMITIVE_TYPE_DOUBLE;
+  global_types::primitive_type_double->internal_name = std::make_shared<std::string>("double");
   global_types::primitive_type_double->type_size = sizeof(double);
 
   global_types::primitive_type_long_double->type_id = PRIMITIVE_TYPE_LONG_DOUBLE;
+  global_types::primitive_type_long_double->internal_name = std::make_shared<std::string>("long double");
   global_types::primitive_type_long_double->type_size = sizeof(long double);
 
   global_types::primitive_type_const_void->type_id = PRIMITIVE_TYPE_VOID;
+  global_types::primitive_type_const_void->internal_name = std::make_shared<std::string>("void");
   //gcc extension sizeof(void)=1 clang says it's error
 
   global_types::primitive_type_const_char->type_id = PRIMITIVE_TYPE_CHAR;
+  global_types::primitive_type_const_char->internal_name = std::make_shared<std::string>("char");
   global_types::primitive_type_const_char->type_size = sizeof(char);
 
   global_types::primitive_type_const_unsigned_char->type_id = PRIMITIVE_TYPE_UNSIGNED_CHAR;
+  global_types::primitive_type_const_unsigned_char->internal_name = std::make_shared<std::string>("unsigned char");
   global_types::primitive_type_const_unsigned_char->type_size = sizeof(unsigned char);
 
   global_types::primitive_type_const_short->type_id = PRIMITIVE_TYPE_SHORT;
+  global_types::primitive_type_const_short->internal_name = std::make_shared<std::string>("short");
   global_types::primitive_type_const_short->type_size = sizeof(short);
 
   global_types::primitive_type_const_unsigned_short->type_id = PRIMITIVE_TYPE_UNSIGNED_SHORT;
+  global_types::primitive_type_const_unsigned_short->internal_name = std::make_shared<std::string>("unsigned short");
   global_types::primitive_type_const_unsigned_short->type_size = sizeof(unsigned short);
 
   global_types::primitive_type_const_int->type_id = PRIMITIVE_TYPE_INT;
+  global_types::primitive_type_const_int->internal_name = std::make_shared<std::string>("int");
   global_types::primitive_type_const_int->type_size = sizeof(int);
 
   global_types::primitive_type_const_unsigned_int->type_id = PRIMITIVE_TYPE_UNSIGNED_INT;
+  global_types::primitive_type_void->internal_name = std::make_shared<std::string>("unsigned int");
   global_types::primitive_type_const_unsigned_int->type_size = sizeof(unsigned int);
 
   global_types::primitive_type_const_long->type_id = PRIMITIVE_TYPE_LONG;
+  global_types::primitive_type_void->internal_name = std::make_shared<std::string>("void");
   global_types::primitive_type_const_long->type_size = sizeof(long);
 
   global_types::primitive_type_const_unsigned_long->type_id = PRIMITIVE_TYPE_UNSIGNED_LONG;
+  global_types::primitive_type_const_unsigned_long->internal_name = std::make_shared<std::string>("unsigned long");
   global_types::primitive_type_const_unsigned_long->type_size = sizeof(unsigned long);
 
   global_types::primitive_type_const_long_long->type_id = PRIMITIVE_TYPE_LONG_LONG;
+  global_types::primitive_type_const_long_long->internal_name = std::make_shared<std::string>("long long");
   global_types::primitive_type_const_long_long->type_size = sizeof(long long);
 
   global_types::primitive_type_const_unsigned_long_long->type_id = PRIMITIVE_TYPE_UNSIGNED_LONG_LONG;
+  global_types::primitive_type_const_unsigned_long_long->internal_name =
+      std::make_shared<std::string>("unsigned long long");
   global_types::primitive_type_const_unsigned_long_long->type_size = sizeof(unsigned long long);
 
   global_types::primitive_type_const_float->type_id = PRIMITIVE_TYPE_FLOAT;
+  global_types::primitive_type_const_float->internal_name = std::make_shared<std::string>("float");
   global_types::primitive_type_const_float->type_size = sizeof(float);
 
   global_types::primitive_type_const_double->type_id = PRIMITIVE_TYPE_DOUBLE;
+  global_types::primitive_type_const_double->internal_name = std::make_shared<std::string>("double");
   global_types::primitive_type_const_double->type_size = sizeof(double);
 
   global_types::primitive_type_const_long_double->type_id = PRIMITIVE_TYPE_LONG_DOUBLE;
+  global_types::primitive_type_const_long_double->internal_name = std::make_shared<std::string>("long double");
   global_types::primitive_type_const_long_double->type_size = sizeof(long double);
 
   global_types::primitive_type_const_void->const_type_qualifier_set = true;

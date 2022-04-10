@@ -1,3 +1,8 @@
+struct B{
+    double y;
+    int x;
+    struct{int z;};
+};
 int* const **p=(void*)0;
 
 int printf(const char* fmt,...);
@@ -11,6 +16,4 @@ struct A{int;int;int x;int x1:5;double d;};
 int main(void) {
   return printf("hello %d\n",x);
 }
-
-extern int a=1;
 

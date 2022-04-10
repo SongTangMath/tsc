@@ -355,7 +355,7 @@ return 0;
 
 .type int：用于指定符号表中符号的类型；
 
-.section name：将接下来的代码放入由name指定的段中；
+.section internal_name：将接下来的代码放入由name指定的段中；
 
 .ascii "string"...：定义字符串数据；
 
@@ -387,7 +387,7 @@ return 0;
 
 .long expressions：与.int一样；
 
-.def name：为符号name定义调试信息，直到遇到.endef指令为止；
+.def internal_name：为符号name定义调试信息，直到遇到.endef指令为止；
 
 .desc symbol, abs-expression：为符号定义描述；
 
