@@ -64,6 +64,12 @@ enum {
   UNARY_OPERATOR_NOT
 };
 
+enum {
+  DECLARATION_SPECIFIERS_LOCATION_NONE,
+  DECLARATION_SPECIFIERS_LOCATION_DECLARATION,
+  DECLARATION_SPECIFIERS_LOCATION_PARAMETER_LIST
+};
+
 void setup_type_system();
 
 struct symbol_table_node {
@@ -84,9 +90,10 @@ int analyze_declaration(std::shared_ptr<ast_node> declaration, semantics_analysi
                         std::shared_ptr<tsc_symbol> &symbol);
 int analyze_function_definition(std::shared_ptr<ast_node> function_definition, semantics_analysis_context &context);
 int analyze_declaration_specifiers(std::shared_ptr<ast_node> declaration_specifiers,
-                                   semantics_analysis_context &context, std::shared_ptr<tsc_symbol> &symbol);
+                                   semantics_analysis_context &context, std::shared_ptr<tsc_symbol> &symbol,
+                                   int declaration_specifiers_location);
 int check_type_specifiers(std::vector<std::shared_ptr<ast_node>> &type_specifiers, semantics_analysis_context &context,
-                          std::shared_ptr<tsc_symbol> &symbol);
+                          std::shared_ptr<tsc_symbol> &symbol, int declaration_specifiers_location);
 
 int check_type_qualifiers(std::vector<std::shared_ptr<ast_node>> &type_qualifiers, semantics_analysis_context &context,
                           std::shared_ptr<tsc_symbol> &symbol);
@@ -98,9 +105,10 @@ int check_function_specifiers(std::vector<std::shared_ptr<ast_node>> &function_s
                               std::shared_ptr<tsc_symbol> &symbol);
 
 int analyze_enum_specifier(std::shared_ptr<ast_node> enum_specifier, semantics_analysis_context &context,
-                           std::shared_ptr<tsc_symbol> &symbol);
+                           std::shared_ptr<tsc_symbol> &symbol, int declaration_specifiers_location);
 int analyze_struct_or_union_specifier(std::shared_ptr<ast_node> struct_or_union_specifier,
-                                      semantics_analysis_context &context, std::shared_ptr<tsc_symbol> &symbol);
+                                      semantics_analysis_context &context, std::shared_ptr<tsc_symbol> &symbol,
+                                      int declaration_specifiers_location);
 
 //  如果有2个struct_union_enum同名,它们是否一致.
 //  例如type1是声明struct A; type2是定义struct A{...};则一致.如果type2是个union那么不一致
@@ -205,7 +213,8 @@ int analyze_pointer(std::shared_ptr<ast_node> pointer, semantics_analysis_contex
                     std::shared_ptr<tsc_symbol> &derived_declarator_symbol,
                     std::shared_ptr<tsc_symbol> &direct_declarator_symbol);
 
-int analyze_parameter_type_list(std::shared_ptr<ast_node> parameter_type_list, semantics_analysis_context &context);
+int analyze_parameter_type_list(std::shared_ptr<ast_node> parameter_type_list, semantics_analysis_context &context,
+                                std::shared_ptr<tsc_symbol> &function_symbol);
 
 int analyze_type_qualifier_list(std::shared_ptr<ast_node> type_qualifier_list, semantics_analysis_context &context,
                                 std::shared_ptr<tsc_symbol> &symbol);
@@ -223,3 +232,9 @@ int add_type_name_to_symbol_table(std::shared_ptr<tsc_symbol> &symbol, semantics
 int add_nested_anonymous_struct_fields_to_parent_struct(std::shared_ptr<tsc_symbol> &parent_struct_symbol,
                                                         std::shared_ptr<tsc_symbol> &child_struct_symbol,
                                                         semantics_analysis_context &context);
+
+int analyze_initializer(std::shared_ptr<ast_node> initializer, semantics_analysis_context &context,
+                        std::shared_ptr<tsc_symbol> &declarator_symbol);
+
+int analyze_parameter_declaration(std::shared_ptr<ast_node> parameter_declaration, semantics_analysis_context &context,
+                                  std::shared_ptr<tsc_symbol> &function_symbol,std::shared_ptr<ast_node>&out_identifier_node);

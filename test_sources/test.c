@@ -1,7 +1,11 @@
+void func1(int a,int a);
+void func(struct A{int;});
 struct B{
     double y;
     int x;
     struct{int z;};
+    struct B* p;
+    struct{int x1;};
 };
 int* const **p=(void*)0;
 

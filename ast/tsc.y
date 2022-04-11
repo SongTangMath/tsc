@@ -942,7 +942,7 @@ declaration
 		node.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //SEMI_COLON
         $$=node;
     }
-	| declaration_specifiers  SEMI_COLON
+	| declaration_specifiers init_declarator_list SEMI_COLON
 	{
         ast_node node;
         node.node_type = NODE_TYPE_DECLARATION;
@@ -1916,8 +1916,8 @@ parameter_type_list
 	: parameter_list COMMA ELLIPSIS
 	{
         ast_node node;
-        node.node_type = NODE_TYPE_TYPE_PARAMETER_TYPE_LIST;
-        node.node_sub_type = NODE_TYPE_TYPE_PARAMETER_TYPE_LIST_SUBTYPE_PARAMETER_LIST_COMMA_ELLIPSE;
+        node.node_type = NODE_TYPE_PARAMETER_TYPE_LIST;
+        node.node_sub_type = NODE_TYPE_PARAMETER_TYPE_LIST_SUBTYPE_PARAMETER_LIST_COMMA_ELLIPSE;
         node.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //parameter_list
 		node.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //COMMA
 		node.items.push_back(std::shared_ptr<ast_node>(new ast_node($3))); //ELLIPSIS
@@ -1926,8 +1926,8 @@ parameter_type_list
 	| parameter_list
 	{
         ast_node node;
-        node.node_type = NODE_TYPE_TYPE_PARAMETER_TYPE_LIST;
-        node.node_sub_type = NODE_TYPE_TYPE_PARAMETER_TYPE_LIST_SUBTYPE_PARAMETER_LIST;
+        node.node_type = NODE_TYPE_PARAMETER_TYPE_LIST;
+        node.node_sub_type = NODE_TYPE_PARAMETER_TYPE_LIST_SUBTYPE_PARAMETER_LIST;
         node.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //type_qualifier
         $$=node;
     }
@@ -1937,16 +1937,16 @@ parameter_list
 	: parameter_declaration
 	{
         ast_node node;
-        node.node_type = NODE_TYPE_TYPE_PARAMETER_LIST;
-        node.node_sub_type = NODE_TYPE_TYPE_PARAMETER_TYPE_LIST_SUBTYPE_PARAMETER_LIST_COMMA_PARAMETER_DECLARATION;
+        node.node_type = NODE_TYPE_PARAMETER_LIST;
+        node.node_sub_type = NODE_TYPE_PARAMETER_LIST_SUBTYPE_PARAMETER_DECLARATION;
         node.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //parameter_declaration
         $$=node;
     }
 	| parameter_list COMMA parameter_declaration
 	{
         ast_node node;
-        node.node_type = NODE_TYPE_TYPE_PARAMETER_LIST;
-        node.node_sub_type = NODE_TYPE_TYPE_PARAMETER_LIST_SUBTYPE_PARAMETER_DECLARATION;
+        node.node_type = NODE_TYPE_PARAMETER_LIST;
+        node.node_sub_type = NODE_TYPE_PARAMETER_LIST_SUBTYPE_PARAMETER_LIST_COMMA_PARAMETER_DECLARATION;
         node.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //parameter_list
 		node.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //COMMA
 		node.items.push_back(std::shared_ptr<ast_node>(new ast_node($3))); //parameter_declaration
@@ -1958,8 +1958,8 @@ parameter_declaration
 	: declaration_specifiers declarator
 	{
         ast_node node;
-        node.node_type = NODE_TYPE_TYPE_PARAMETER_DECLARATION;
-        node.node_sub_type = NODE_TYPE_TYPE_PARAMETER_DECLARATION_SUBTYPE_DECLARATION_SPECIFIERS_DECLARATOR;
+        node.node_type = NODE_TYPE_PARAMETER_DECLARATION;
+        node.node_sub_type = NODE_TYPE_PARAMETER_DECLARATION_SUBTYPE_DECLARATION_SPECIFIERS_DECLARATOR;
         node.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //declaration_specifiers
 		node.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //declarator
         $$=node;
@@ -1967,8 +1967,8 @@ parameter_declaration
 	| declaration_specifiers abstract_declarator
 	{
         ast_node node;
-        node.node_type = NODE_TYPE_TYPE_PARAMETER_DECLARATION;
-        node.node_sub_type = NODE_TYPE_TYPE_PARAMETER_DECLARATION_SUBTYPE_DECLARATION_SPECIFIERS_ABSTRACT_DECLARATOR;
+        node.node_type = NODE_TYPE_PARAMETER_DECLARATION;
+        node.node_sub_type = NODE_TYPE_PARAMETER_DECLARATION_SUBTYPE_DECLARATION_SPECIFIERS_ABSTRACT_DECLARATOR;
         node.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //declaration_specifiers
 		node.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //abstract_declarator
         $$=node;
@@ -1976,8 +1976,8 @@ parameter_declaration
 	| declaration_specifiers
 	{
         ast_node node;
-        node.node_type = NODE_TYPE_TYPE_PARAMETER_DECLARATION;
-        node.node_sub_type = NODE_TYPE_TYPE_PARAMETER_DECLARATION_SUBTYPE_DECLARATION_SPECIFIERS;
+        node.node_type = NODE_TYPE_PARAMETER_DECLARATION;
+        node.node_sub_type = NODE_TYPE_PARAMETER_DECLARATION_SUBTYPE_DECLARATION_SPECIFIERS;
         node.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //declaration_specifiers
         $$=node;
     }
@@ -1987,16 +1987,16 @@ identifier_list
 	: IDENTIFIER
 	{
         ast_node node;
-        node.node_type = NODE_TYPE_TYPE_IDENTIFIER_LIST;
-        node.node_sub_type = NODE_TYPE_TYPE_IDENTIFIER_LIST_SUBTYPE_IDENTIFIER;
+        node.node_type = NODE_TYPE_IDENTIFIER_LIST;
+        node.node_sub_type = NODE_TYPE_IDENTIFIER_LIST_SUBTYPE_IDENTIFIER;
         node.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //IDENTIFIER
         $$=node;
     }
 	| identifier_list COMMA IDENTIFIER
 	{
         ast_node node;
-        node.node_type = NODE_TYPE_TYPE_PARAMETER_DECLARATION;
-        node.node_sub_type = NODE_TYPE_TYPE_IDENTIFIER_LIST_SUBTYPE_IDENTIFIER_LIST_COMMA_IDENTIFIER;
+        node.node_type = NODE_TYPE_IDENTIFIER_LIST;
+        node.node_sub_type = NODE_TYPE_IDENTIFIER_LIST_SUBTYPE_IDENTIFIER_LIST_COMMA_IDENTIFIER;
         node.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //identifier_list
 		node.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //COMMA
 		node.items.push_back(std::shared_ptr<ast_node>(new ast_node($3))); //IDENTIFIER
@@ -2152,7 +2152,7 @@ direct_abstract_declarator
 	{
         ast_node node;
         node.node_type = NODE_TYPE_DIRECT_ABSTRACT_DECLARATOR;
-        node.node_sub_type = NODE_TYPE_DIRECT_ABSTRACT_DECLARATOR_SUBTYPE_DIRECT_ABSTRACT_DECLARATOR_LEFT_BRACKET_MUL_RIGHT_BRACKET;
+        node.node_sub_type = NODE_TYPE_DIRECT_ABSTRACT_DECLARATOR_SUBTYPE_DIRECT_ABSTRACT_DECLARATOR_LEFT_BRACKET_RIGHT_BRACKET;
         node.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //direct_abstract_declarator
 		node.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //LEFT_BRACKET
 		node.items.push_back(std::shared_ptr<ast_node>(new ast_node($3))); //RIGHT_BRACKET
@@ -2162,7 +2162,7 @@ direct_abstract_declarator
 	{
         ast_node node;
         node.node_type = NODE_TYPE_DIRECT_ABSTRACT_DECLARATOR;
-        node.node_sub_type = NODE_TYPE_DIRECT_ABSTRACT_DECLARATOR_SUBTYPE_DIRECT_ABSTRACT_DECLARATOR_LEFT_BRACKET_STATIC_TYPE_QUALIFIER_LIST_ASSIGNMENT_EXPRESSION_RIGHT_BRACKET;
+        node.node_sub_type = NODE_TYPE_DIRECT_ABSTRACT_DECLARATOR_SUBTYPE_DIRECT_ABSTRACT_DECLARATOR_LEFT_BRACKET_MUL_RIGHT_BRACKET;
         node.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //direct_abstract_declarator
 		node.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //LEFT_BRACKET
 		node.items.push_back(std::shared_ptr<ast_node>(new ast_node($3))); //MUL
@@ -2440,7 +2440,7 @@ statement
 	{
         ast_node node;
         node.node_type = NODE_TYPE_STATEMENT;
-        node.node_sub_type = NODE_TYPE_STATEMENT_SUBTYPE_COMPOUND_STATEMEMT;
+        node.node_sub_type = NODE_TYPE_STATEMENT_SUBTYPE_COMPOUND_STATEMENT;
         node.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //compound_statement
         $$=node;
     }

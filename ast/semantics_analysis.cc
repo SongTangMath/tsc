@@ -69,7 +69,8 @@ int analyze_declaration(std::shared_ptr<ast_node> declaration, semantics_analysi
   switch (declaration->node_sub_type) {
   case NODE_TYPE_DECLARATION_SUBTYPE_DECLARATION_SPECIFIERS_SEMI_COLON: {
     std::shared_ptr<ast_node> declaration_specifiers = declaration->items[0];
-    semantics_analysis_result = analyze_declaration_specifiers(declaration_specifiers, context, symbol);
+    semantics_analysis_result = analyze_declaration_specifiers(declaration_specifiers, context, symbol,
+                                                               DECLARATION_SPECIFIERS_LOCATION_DECLARATION);
     if (semantics_analysis_result)
       return semantics_analysis_result;
     //如果没有init_declarator_list说明是声明一个类型如struct A{...};此时如果不是匿名enum_struct_union需要加入tags
@@ -82,7 +83,8 @@ int analyze_declaration(std::shared_ptr<ast_node> declaration, semantics_analysi
 
     std::shared_ptr<ast_node> declaration_specifiers = declaration->items[0];
     std::shared_ptr<ast_node> init_declarator_list = declaration->items[1];
-    semantics_analysis_result = analyze_declaration_specifiers(declaration_specifiers, context, symbol);
+    semantics_analysis_result = analyze_declaration_specifiers(declaration_specifiers, context, symbol,
+                                                               DECLARATION_SPECIFIERS_LOCATION_DECLARATION);
     if (semantics_analysis_result)
       return semantics_analysis_result;
     semantics_analysis_result = analyze_init_declarator_list(init_declarator_list, context, symbol);
@@ -120,7 +122,8 @@ declaration_specifiers
 */
 
 int analyze_declaration_specifiers(std::shared_ptr<ast_node> declaration_specifiers,
-                                   semantics_analysis_context &context, std::shared_ptr<tsc_symbol> &symbol) {
+                                   semantics_analysis_context &context, std::shared_ptr<tsc_symbol> &symbol,
+                                   int declaration_specifiers_location) {
   std::vector<std::shared_ptr<ast_node>> storage_class_specifiers;
   std::vector<std::shared_ptr<ast_node>> type_specifiers;
   std::vector<std::shared_ptr<ast_node>> type_qualifiers;
@@ -199,7 +202,7 @@ int analyze_declaration_specifiers(std::shared_ptr<ast_node> declaration_specifi
   if (semantics_analysis_result)
     return semantics_analysis_result;
 
-  semantics_analysis_result = check_type_specifiers(type_specifiers, context, symbol);
+  semantics_analysis_result = check_type_specifiers(type_specifiers, context, symbol, declaration_specifiers_location);
   if (semantics_analysis_result)
     return semantics_analysis_result;
 
@@ -384,7 +387,7 @@ type_specifier
 */
 
 int check_type_specifiers(std::vector<std::shared_ptr<ast_node>> &type_specifiers, semantics_analysis_context &context,
-                          std::shared_ptr<tsc_symbol> &symbol) {
+                          std::shared_ptr<tsc_symbol> &symbol, int declaration_specifiers_location) {
   /*
           double long ->OK
           long short ->error
@@ -449,7 +452,7 @@ int check_type_specifiers(std::vector<std::shared_ptr<ast_node>> &type_specifier
              type_specifiers[0]->get_first_terminal_line_no());
       return 1;
     case NODE_TYPE_TYPE_SPECIFIER_SUBTYPE_IMAGINARY:
-      printf("%s:%d error:\n\tunsupported C99 '_Imagnary' in declaration specifiers\n", input_file_name.c_str(),
+      printf("%s:%d error:\n\tunsupported C99 '_Imaginary' in declaration specifiers\n", input_file_name.c_str(),
              type_specifiers[0]->get_first_terminal_line_no());
       return 1;
     case NODE_TYPE_TYPE_SPECIFIER_SUBTYPE_ATOMIC_TYPE_SPECIFIER:
@@ -750,7 +753,8 @@ int check_type_specifiers(std::vector<std::shared_ptr<ast_node>> &type_specifier
     symbol->type->type_id = PRIMITIVE_TYPE_ENUM;
     symbol->type->type_size = sizeof(int);
     std::shared_ptr<ast_node> enum_specifier = type_specifiers[0]->items[0];
-    int semantics_analysis_result = analyze_enum_specifier(enum_specifier, context, symbol);
+    int semantics_analysis_result =
+        analyze_enum_specifier(enum_specifier, context, symbol, declaration_specifiers_location);
     if (semantics_analysis_result)
       return semantics_analysis_result;
     break;
@@ -797,7 +801,8 @@ int check_type_specifiers(std::vector<std::shared_ptr<ast_node>> &type_specifier
   case RECORD_TYPE_STRUCT_OR_UNION: {
     symbol->type->type_id = type_id;
     std::shared_ptr<ast_node> struct_or_union_specifier = type_specifiers[0]->items[0];
-    int semantics_analysis_result = analyze_struct_or_union_specifier(struct_or_union_specifier, context, symbol);
+    int semantics_analysis_result =
+        analyze_struct_or_union_specifier(struct_or_union_specifier, context, symbol, declaration_specifiers_location);
     if (semantics_analysis_result)
       return semantics_analysis_result;
     break;
@@ -822,7 +827,7 @@ enum_specifier
 */
 
 int analyze_enum_specifier(std::shared_ptr<ast_node> enum_specifier, semantics_analysis_context &context,
-                           std::shared_ptr<tsc_symbol> &symbol) {
+                           std::shared_ptr<tsc_symbol> &symbol, int declaration_specifiers_location) {
 
   std::shared_ptr<ast_node> identifier_node; // enum A{...}; identifier=A
   std::shared_ptr<ast_node> enumerator_list;
@@ -857,6 +862,11 @@ int analyze_enum_specifier(std::shared_ptr<ast_node> enum_specifier, semantics_a
 
   else {
     symbol->type->internal_name = std::make_shared<std::string>("enum <anonymous>");
+  }
+  if (symbol->type->is_complete && declaration_specifiers_location == DECLARATION_SPECIFIERS_LOCATION_PARAMETER_LIST) {
+    printf("%s:%d warning:\n\t'%s' declared inside parameter list will not be visible outside of this definition or "
+           "declaration\n",
+           input_file_name.c_str(), enum_specifier->get_first_terminal_line_no(), symbol->type->internal_name->c_str());
   }
 
   if (enumerator_list)
@@ -942,7 +952,8 @@ struct_or_union_specifier
 */
 
 int analyze_struct_or_union_specifier(std::shared_ptr<ast_node> struct_or_union_specifier,
-                                      semantics_analysis_context &context, std::shared_ptr<tsc_symbol> &symbol) {
+                                      semantics_analysis_context &context, std::shared_ptr<tsc_symbol> &symbol,
+                                      int declaration_specifiers_location) {
   // todo calculate size of struct
   std::shared_ptr<ast_node> struct_or_union = struct_or_union_specifier->items[0];
   std::shared_ptr<ast_node> identifier_node;
@@ -998,6 +1009,13 @@ int analyze_struct_or_union_specifier(std::shared_ptr<ast_node> struct_or_union_
     symbol->type->internal_name = std::make_shared<std::string>(type_name_prefix + "<anonymous>");
   }
 
+  if (symbol->type->is_complete && declaration_specifiers_location == DECLARATION_SPECIFIERS_LOCATION_PARAMETER_LIST) {
+    printf("%s:%d warning:\n\t'%s' declared inside parameter list will not be visible outside of this definition or "
+           "declaration\n",
+           input_file_name.c_str(), struct_or_union_specifier->get_first_terminal_line_no(),
+           symbol->type->internal_name->c_str());
+  }
+
   if (struct_declaration_list)
     return analyze_struct_declaration_list(struct_declaration_list, context, symbol);
 
@@ -1016,7 +1034,6 @@ int analyze_struct_declaration_list(std::shared_ptr<ast_node> struct_declaration
   std::vector<std::shared_ptr<ast_node>> struct_declarations;
   std::shared_ptr<ast_node> node = struct_declaration_list;
 
-  context.current_symbol_table_node = std::make_shared<symbol_table_node>();
   while (node->node_type == NODE_TYPE_STRUCT_DECLARATION_LIST &&
          node->node_sub_type == NODE_TYPE_STRUCT_DECLARATION_LIST_SUBTYPE_STRUCT_DECLARATION_LIST_STRUCT_DECLARATION) {
     struct_declarations.push_back(node->items[1]);
@@ -1357,7 +1374,8 @@ int analyze_direct_declarator(std::shared_ptr<ast_node> direct_declarator, seman
     next_direct_declarator->symbol->type->function_signature = std::make_shared<tsc_function_signature>();
     next_direct_declarator->symbol->type->function_signature->return_type = direct_declarator->symbol->type;
     next_direct_declarator->symbol->type->function_signature->has_proto = true;
-    semantics_analysis_result = analyze_parameter_type_list(parameter_type_list, context);
+    semantics_analysis_result =
+        analyze_parameter_type_list(parameter_type_list, context, next_direct_declarator->symbol);
     if (semantics_analysis_result)
       return semantics_analysis_result;
     semantics_analysis_result = analyze_direct_declarator(next_direct_declarator, context, out_identifier_node);
@@ -1396,8 +1414,8 @@ int analyze_direct_declarator(std::shared_ptr<ast_node> direct_declarator, seman
     std::shared_ptr<ast_node> node = identifier_list;
     std::vector<std::shared_ptr<ast_node>> identifier_nodes;
 
-    while (node->node_type == NODE_TYPE_TYPE_IDENTIFIER_LIST &&
-           node->node_sub_type == NODE_TYPE_TYPE_IDENTIFIER_LIST_SUBTYPE_IDENTIFIER_LIST_COMMA_IDENTIFIER) {
+    while (node->node_type == NODE_TYPE_IDENTIFIER_LIST &&
+           node->node_sub_type == NODE_TYPE_IDENTIFIER_LIST_SUBTYPE_IDENTIFIER_LIST_COMMA_IDENTIFIER) {
       identifier_nodes.push_back(node->items[2]);
       node = node->items[0];
     }
@@ -1509,8 +1527,96 @@ parameter_list
 	;
 */
 
-int analyze_parameter_type_list(std::shared_ptr<ast_node> parameter_type_list, semantics_analysis_context &context) {
+int analyze_parameter_type_list(std::shared_ptr<ast_node> parameter_type_list, semantics_analysis_context &context,
+                                std::shared_ptr<tsc_symbol> &function_symbol) {
   //if one argument is void then void must be the only argument
+  int semantics_analysis_result = 0;
+  std::shared_ptr<ast_node> parameter_list = parameter_type_list->items[0];
+  switch (parameter_type_list->node_sub_type) {
+  case NODE_TYPE_PARAMETER_TYPE_LIST_SUBTYPE_PARAMETER_LIST_COMMA_ELLIPSE:
+    function_symbol->type->function_signature->has_ellipse = true;
+    break;
+  case NODE_TYPE_PARAMETER_TYPE_LIST_SUBTYPE_PARAMETER_LIST:
+    function_symbol->type->function_signature->has_ellipse = false;
+    break;
+  }
+  // 如果在参数列表中声明complete的struct_union则在外部不可见.
+  // warning: 'struct A' declared inside parameter list will not be visible outside of this definition or declaration
+  // 所以参数列表需要一个单独的符号表节点
+  std::shared_ptr<symbol_table_node> parameters_symbol_table_node = std::make_shared<symbol_table_node>();
+  parameters_symbol_table_node->parent = context.current_symbol_table_node;
+  context.current_symbol_table_node = parameters_symbol_table_node;
+
+  std::vector<std::shared_ptr<ast_node>> parameter_declarations;
+  std::shared_ptr<ast_node> node = parameter_list;
+  while (node->node_type == NODE_TYPE_PARAMETER_LIST &&
+         node->node_sub_type == NODE_TYPE_PARAMETER_LIST_SUBTYPE_PARAMETER_LIST_COMMA_PARAMETER_DECLARATION) {
+    parameter_declarations.push_back(node->items[2]);
+    node = node->items[0];
+  }
+
+  parameter_declarations.push_back(node->items[0]);
+  parameter_declarations =
+      std::vector<std::shared_ptr<ast_node>>(parameter_declarations.rbegin(), parameter_declarations.rend());
+  parameter_list->sub_nodes = parameter_declarations;
+  std::set<std::string> parameter_identifiers;
+  for (std::shared_ptr<ast_node> parameter_declaration : parameter_declarations) {
+    std::shared_ptr<ast_node> out_identifier_node;
+    semantics_analysis_result =
+        analyze_parameter_declaration(parameter_declaration, context, function_symbol, out_identifier_node);
+    if (semantics_analysis_result)
+      return semantics_analysis_result;
+    //校验是否有重名参数
+    if (out_identifier_node) {
+      if (parameter_identifiers.find(*out_identifier_node->lexeme) != parameter_identifiers.end()) {
+        printf("%s:%d error:\n\tredefinition of parameter '%s'\n", input_file_name.c_str(),
+               parameter_declaration->get_first_terminal_line_no(), out_identifier_node->lexeme->c_str());
+        return 1;
+      } else {
+        parameter_identifiers.insert(*out_identifier_node->lexeme);
+      }
+    }
+  }
+  //恢复符号表节点
+  context.current_symbol_table_node = context.current_symbol_table_node->parent;
+  return 0;
+}
+
+/*
+parameter_declaration
+	: declaration_specifiers declarator
+	| declaration_specifiers abstract_declarator
+	| declaration_specifiers
+	;
+*/
+int analyze_parameter_declaration(std::shared_ptr<ast_node> parameter_declaration, semantics_analysis_context &context,
+                                  std::shared_ptr<tsc_symbol> &function_symbol,
+                                  std::shared_ptr<ast_node> &out_identifier_node) {
+  std::shared_ptr<ast_node> declaration_specifiers = parameter_declaration->items[0];
+  int semantics_analysis_result = 0;
+  std::shared_ptr<tsc_symbol> parameter_symbol = std::make_shared<tsc_symbol>();
+  declaration_specifiers->symbol = parameter_symbol;
+  declaration_specifiers->symbol->type = std::make_shared<tsc_type>();
+  semantics_analysis_result = analyze_declaration_specifiers(declaration_specifiers, context, parameter_symbol,
+                                                             DECLARATION_SPECIFIERS_LOCATION_PARAMETER_LIST);
+  if (semantics_analysis_result)
+    return semantics_analysis_result;
+  switch (parameter_declaration->node_sub_type) {
+  case NODE_TYPE_PARAMETER_DECLARATION_SUBTYPE_DECLARATION_SPECIFIERS_DECLARATOR: {
+    std::shared_ptr<ast_node> declarator = parameter_declaration->items[1];
+    declarator->symbol = std::make_shared<tsc_symbol>();
+    semantics_analysis_result = analyze_declarator(declarator, context, out_identifier_node);
+    if (semantics_analysis_result)
+      return semantics_analysis_result;
+  } break;
+  case NODE_TYPE_PARAMETER_DECLARATION_SUBTYPE_DECLARATION_SPECIFIERS_ABSTRACT_DECLARATOR: {
+    std::shared_ptr<ast_node> abstract_declarator = parameter_declaration->items[1];
+
+  } break;
+  case NODE_TYPE_PARAMETER_DECLARATION_SUBTYPE_DECLARATION_SPECIFIERS: {
+  } break;
+  }
+
   return 0;
 }
 
@@ -3288,8 +3394,8 @@ int analyze_init_declarator(std::shared_ptr<ast_node> init_declarator, semantics
         add_declarator_identifier_to_symbol_table(init_declarator, context, out_identifier_node);
     if (semantics_analysis_result)
       return semantics_analysis_result;
+    semantics_analysis_result = analyze_initializer(initializer, context, declarator->symbol);
 
-    //todo analyze initializer
   }
 
   break;
@@ -3314,6 +3420,20 @@ int analyze_init_declarator(std::shared_ptr<ast_node> init_declarator, semantics
   }
 
   return semantics_analysis_result;
+}
+
+/*
+initializer
+: '{' initializer_list '}'
+| '{' initializer_list ',' '}'
+| assignment_expression
+;
+ */
+
+int analyze_initializer(std::shared_ptr<ast_node> initializer, semantics_analysis_context &context,
+                        std::shared_ptr<tsc_symbol> &declarator_symbol) {
+  //todo analyze initializer
+  return 0;
 }
 
 int add_declarator_identifier_to_symbol_table(std::shared_ptr<ast_node> init_declarator,
@@ -3422,7 +3542,8 @@ int analyze_specifier_qualifier_list(std::shared_ptr<ast_node> specifier_qualifi
   }
   std::shared_ptr<tsc_symbol> symbol = std::make_shared<tsc_symbol>();
   symbol->type = std::make_shared<tsc_type>();
-  semantics_analysis_result = check_type_specifiers(type_specifiers, context, symbol);
+  semantics_analysis_result =
+      check_type_specifiers(type_specifiers, context, symbol, DECLARATION_SPECIFIERS_LOCATION_NONE);
   if (semantics_analysis_result)
     return semantics_analysis_result;
 
