@@ -558,7 +558,7 @@ struct tsc_function_signature {
   // 是否有省略号(可变参数)
   bool has_ellipse;
   std::shared_ptr<tsc_type> return_type;
-  std::vector<std::shared_ptr<tsc_symbol>> arguments;
+  std::vector<std::shared_ptr<tsc_symbol>> parameter_symbols;
   // for K&R style function definition
   std::vector<std::string> identifiers;
 };

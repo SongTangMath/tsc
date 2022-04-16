@@ -1177,7 +1177,7 @@ struct_declarator
 
 int analyze_struct_declarator(std::shared_ptr<ast_node> struct_declarator, semantics_analysis_context &context,
                               std::shared_ptr<tsc_symbol> &symbol, std::shared_ptr<ast_node> &out_identifier_node) {
-  // declarator->symbol的type字段已填好
+  // struct_declarator->symbol的type字段已填好
 
   std::shared_ptr<tsc_symbol> struct_declarator_symbol = struct_declarator->symbol;
   int semantics_analysis_result;
@@ -1561,21 +1561,24 @@ int analyze_parameter_type_list(std::shared_ptr<ast_node> parameter_type_list, s
   parameter_list->sub_nodes = parameter_declarations;
   std::set<std::string> parameter_identifiers;
   for (std::shared_ptr<ast_node> parameter_declaration : parameter_declarations) {
-    std::shared_ptr<ast_node> out_identifier_node;
+    std::shared_ptr<tsc_symbol> parameter_symbol = std::make_shared<tsc_symbol>();
+
+    parameter_symbol->type = std::make_shared<tsc_type>();
     semantics_analysis_result =
-        analyze_parameter_declaration(parameter_declaration, context, function_symbol, out_identifier_node);
+        analyze_parameter_declaration(parameter_declaration, context, function_symbol, parameter_symbol);
     if (semantics_analysis_result)
       return semantics_analysis_result;
     //校验是否有重名参数
-    if (out_identifier_node) {
-      if (parameter_identifiers.find(*out_identifier_node->lexeme) != parameter_identifiers.end()) {
+    if (parameter_symbol->identifier) {
+      if (parameter_identifiers.find(*parameter_symbol->identifier) != parameter_identifiers.end()) {
         printf("%s:%d error:\n\tredefinition of parameter '%s'\n", input_file_name.c_str(),
-               parameter_declaration->get_first_terminal_line_no(), out_identifier_node->lexeme->c_str());
+               parameter_declaration->get_first_terminal_line_no(), parameter_symbol->identifier->c_str());
         return 1;
       } else {
-        parameter_identifiers.insert(*out_identifier_node->lexeme);
+        parameter_identifiers.insert(*parameter_symbol->identifier);
       }
     }
+    function_symbol->type->function_signature->parameter_symbols.push_back(parameter_symbol);
   }
   //恢复符号表节点
   context.current_symbol_table_node = context.current_symbol_table_node->parent;
@@ -1591,33 +1594,229 @@ parameter_declaration
 */
 int analyze_parameter_declaration(std::shared_ptr<ast_node> parameter_declaration, semantics_analysis_context &context,
                                   std::shared_ptr<tsc_symbol> &function_symbol,
-                                  std::shared_ptr<ast_node> &out_identifier_node) {
+                                  std::shared_ptr<tsc_symbol> &out_parameter_symbol) {
   std::shared_ptr<ast_node> declaration_specifiers = parameter_declaration->items[0];
+  std::shared_ptr<tsc_symbol> symbol = std::make_shared<tsc_symbol>();
+  symbol->type = std::make_shared<tsc_type>();
   int semantics_analysis_result = 0;
-  std::shared_ptr<tsc_symbol> parameter_symbol = std::make_shared<tsc_symbol>();
-  declaration_specifiers->symbol = parameter_symbol;
-  declaration_specifiers->symbol->type = std::make_shared<tsc_type>();
-  semantics_analysis_result = analyze_declaration_specifiers(declaration_specifiers, context, parameter_symbol,
+
+  semantics_analysis_result = analyze_declaration_specifiers(declaration_specifiers, context, symbol,
                                                              DECLARATION_SPECIFIERS_LOCATION_PARAMETER_LIST);
   if (semantics_analysis_result)
     return semantics_analysis_result;
   switch (parameter_declaration->node_sub_type) {
   case NODE_TYPE_PARAMETER_DECLARATION_SUBTYPE_DECLARATION_SPECIFIERS_DECLARATOR: {
     std::shared_ptr<ast_node> declarator = parameter_declaration->items[1];
-    declarator->symbol = std::make_shared<tsc_symbol>();
+    declarator->symbol = symbol;
+    std::shared_ptr<ast_node> out_identifier_node;
     semantics_analysis_result = analyze_declarator(declarator, context, out_identifier_node);
+    out_parameter_symbol = out_identifier_node->symbol;
+    out_parameter_symbol->identifier = out_identifier_node->lexeme;
     if (semantics_analysis_result)
       return semantics_analysis_result;
   } break;
   case NODE_TYPE_PARAMETER_DECLARATION_SUBTYPE_DECLARATION_SPECIFIERS_ABSTRACT_DECLARATOR: {
     std::shared_ptr<ast_node> abstract_declarator = parameter_declaration->items[1];
-
+    abstract_declarator->symbol = symbol;
+    semantics_analysis_result = analyze_abstract_declarator(abstract_declarator, context, out_parameter_symbol);
   } break;
   case NODE_TYPE_PARAMETER_DECLARATION_SUBTYPE_DECLARATION_SPECIFIERS: {
   } break;
   }
 
   return 0;
+}
+
+/*
+abstract_declarator
+	: pointer direct_abstract_declarator
+	| pointer
+	| direct_abstract_declarator
+	;
+*/
+int analyze_abstract_declarator(std::shared_ptr<ast_node> abstract_declarator, semantics_analysis_context &context,
+                                std::shared_ptr<tsc_symbol> &out_anonymous_symbol) {
+  int semantics_analysis_result = 0;
+
+  switch (abstract_declarator->node_sub_type) {
+  case NODE_TYPE_ABSTRACT_DECLARATOR_SUBTYPE_POINTER_DIRECT_ABSTRACT_DECLARATOR: {
+    std::shared_ptr<ast_node> pointer = abstract_declarator->items[0];
+    std::shared_ptr<ast_node> direct_abstract_declarator = abstract_declarator->items[1];
+    direct_abstract_declarator->symbol = std::make_shared<tsc_symbol>();
+    semantics_analysis_result =
+        analyze_pointer(pointer, context, abstract_declarator->symbol, direct_abstract_declarator->symbol);
+    if (semantics_analysis_result)
+      return semantics_analysis_result;
+    semantics_analysis_result =
+        analyze_direct_abstract_declarator(direct_abstract_declarator, context, out_anonymous_symbol);
+
+  } break;
+  case NODE_TYPE_ABSTRACT_DECLARATOR_SUBTYPE_POINTER: {
+    std::shared_ptr<ast_node> pointer = abstract_declarator->items[0];
+    out_anonymous_symbol = std::make_shared<tsc_symbol>();
+    semantics_analysis_result = analyze_pointer(pointer, context, abstract_declarator->symbol, out_anonymous_symbol);
+
+  } break;
+  case NODE_TYPE_ABSTRACT_DECLARATOR_SUBTYPE_DIRECT_ABSTRACT_DECLARATOR: {
+    std::shared_ptr<ast_node> direct_abstract_declarator = abstract_declarator->items[0];
+    direct_abstract_declarator->symbol = abstract_declarator->symbol;
+
+    semantics_analysis_result =
+        analyze_direct_abstract_declarator(direct_abstract_declarator, context, out_anonymous_symbol);
+
+  } break;
+  }
+  return semantics_analysis_result;
+}
+
+/*
+direct_abstract_declarator
+	: '(' abstract_declarator ')'
+	| '[' ']'
+	| '[' '*' ']'
+	| '[' STATIC type_qualifier_list assignment_expression ']'
+	| '[' STATIC assignment_expression ']'
+	| '[' type_qualifier_list STATIC assignment_expression ']'
+	| '[' type_qualifier_list assignment_expression ']'
+	| '[' type_qualifier_list ']'
+	| '[' assignment_expression ']'
+	| direct_abstract_declarator '[' ']'
+	| direct_abstract_declarator '[' '*' ']'
+	| direct_abstract_declarator '[' STATIC type_qualifier_list assignment_expression ']'
+	| direct_abstract_declarator '[' STATIC assignment_expression ']'
+	| direct_abstract_declarator '[' type_qualifier_list assignment_expression ']'
+	| direct_abstract_declarator '[' type_qualifier_list STATIC assignment_expression ']'
+	| direct_abstract_declarator '[' type_qualifier_list ']'
+	| direct_abstract_declarator '[' assignment_expression ']'
+	| '(' ')'
+	| '(' parameter_type_list ')'
+	| direct_abstract_declarator '(' ')'
+	| direct_abstract_declarator '(' parameter_type_list ')'
+	;
+*/
+int analyze_direct_abstract_declarator(std::shared_ptr<ast_node> direct_abstract_declarator,
+                                       semantics_analysis_context &context,
+                                       std::shared_ptr<tsc_symbol> &out_anonymous_symbol) {
+  int semantics_analysis_result = 0;
+
+  switch (direct_abstract_declarator->node_sub_type) {
+  case NODE_TYPE_DIRECT_ABSTRACT_DECLARATOR_SUBTYPE_LEFT_PARENTHESIS_ABSTRACT_DECLARATOR_RIGHT_PARENTHESIS: {
+    // '(' abstract_declarator ')'
+    std::shared_ptr<ast_node> abstract_declarator = direct_abstract_declarator->items[0];
+    abstract_declarator->symbol = direct_abstract_declarator->symbol;
+    std::shared_ptr<ast_node> out_identifier_node;
+    semantics_analysis_result = analyze_declarator(abstract_declarator, context, out_identifier_node);
+    if (semantics_analysis_result)
+      return semantics_analysis_result;
+    out_anonymous_symbol = out_identifier_node->symbol;
+
+  } break;
+
+  case NODE_TYPE_DIRECT_ABSTRACT_DECLARATOR_SUBTYPE_LEFT_BRACKET_RIGHT_BRACKET: {
+    // '[' ']'
+    out_anonymous_symbol = std::make_shared<tsc_symbol>();
+    out_anonymous_symbol->type = construct_array_of(direct_abstract_declarator->symbol->type);
+    out_anonymous_symbol->type->is_complete = false;
+
+  } break;
+
+  case NODE_TYPE_DIRECT_ABSTRACT_DECLARATOR_SUBTYPE_LEFT_BRACKET_MUL_RIGHT_BRACKET:
+  case NODE_TYPE_DIRECT_ABSTRACT_DECLARATOR_SUBTYPE_LEFT_BRACKET_STATIC_TYPE_QUALIFIER_LIST_ASSIGNMENT_EXPRESSION_RIGHT_BRACKET:
+  case NODE_TYPE_DIRECT_ABSTRACT_DECLARATOR_SUBTYPE_LEFT_BRACKET_STATIC_ASSIGNMENT_EXPRESSION_RIGHT_BRACKET:
+  case NODE_TYPE_DIRECT_ABSTRACT_DECLARATOR_SUBTYPE_LEFT_BRACKET_TYPE_QUALIFIER_LIST_STATIC_ASSIGNMENT_EXPRESSION_RIGHT_BRACKET:
+  case NODE_TYPE_DIRECT_ABSTRACT_DECLARATOR_SUBTYPE_LEFT_BRACKET_TYPE_QUALIFIER_LIST_ASSIGNMENT_EXPRESSION_RIGHT_BRACKET:
+  case NODE_TYPE_DIRECT_ABSTRACT_DECLARATOR_SUBTYPE_LEFT_BRACKET_TYPE_QUALIFIER_LIST_RIGHT_BRACKET: {
+    printf("%s:%d error:\n\tunsupported grammar in direct_abstract_declarator '%s'\n", input_file_name.c_str(),
+           direct_abstract_declarator->get_first_terminal_line_no(),
+           direct_abstract_declarator->get_expression().c_str());
+    return 1;
+  } break;
+
+  case NODE_TYPE_DIRECT_ABSTRACT_DECLARATOR_SUBTYPE_LEFT_BRACKET_ASSIGNMENT_EXPRESSION_RIGHT_BRACKET: {
+    // '[' assignment_expression ']'
+    out_anonymous_symbol = std::make_shared<tsc_symbol>();
+    std::shared_ptr<ast_node> assignment_expression = direct_abstract_declarator->items[1];
+
+    out_anonymous_symbol->type = construct_array_of(direct_abstract_declarator->symbol->type);
+    semantics_analysis_result = analyze_assignment_expression(assignment_expression, context);
+    if (semantics_analysis_result)
+      return semantics_analysis_result;
+    if (!is_integer_constant(assignment_expression)) {
+      printf("%s:%d error:\n\tvla unsupported in direct_abstract_declarator '%s', expecting constant expression\n",
+             input_file_name.c_str(), direct_abstract_declarator->get_first_terminal_line_no(),
+             direct_abstract_declarator->get_expression().c_str());
+      return 1;
+    }
+    out_anonymous_symbol->type->array_length = std::make_shared<int>(assignment_expression->symbol->value->int_value);
+    semantics_analysis_result =
+        analyze_direct_abstract_declarator(direct_abstract_declarator, context, out_anonymous_symbol);
+
+  } break;
+
+  case NODE_TYPE_DIRECT_ABSTRACT_DECLARATOR_SUBTYPE_DIRECT_ABSTRACT_DECLARATOR_LEFT_BRACKET_RIGHT_BRACKET: {
+
+    std::shared_ptr<ast_node> next_direct_abstract_declarator = direct_abstract_declarator->items[0];
+    next_direct_abstract_declarator->symbol = std::make_shared<tsc_symbol>();
+    next_direct_abstract_declarator->symbol->type = construct_array_of(direct_abstract_declarator->symbol->type);
+    direct_abstract_declarator->symbol->type->is_complete = false;
+    semantics_analysis_result =
+        analyze_direct_abstract_declarator(next_direct_abstract_declarator, context, out_anonymous_symbol);
+
+  } break;
+
+  case NODE_TYPE_DIRECT_ABSTRACT_DECLARATOR_SUBTYPE_DIRECT_ABSTRACT_DECLARATOR_LEFT_BRACKET_MUL_RIGHT_BRACKET:
+  case NODE_TYPE_DIRECT_ABSTRACT_DECLARATOR_SUBTYPE_DIRECT_ABSTRACT_DECLARATOR_LEFT_BRACKET_STATIC_TYPE_QUALIFIER_LIST_ASSIGNMENT_EXPRESSION_RIGHT_BRACKET:
+  case NODE_TYPE_DIRECT_ABSTRACT_DECLARATOR_SUBTYPE_DIRECT_ABSTRACT_DECLARATOR_LEFT_BRACKET_STATIC_ASSIGNMENT_EXPRESSION_RIGHT_BRACKET:
+  case NODE_TYPE_DIRECT_ABSTRACT_DECLARATOR_SUBTYPE_DIRECT_ABSTRACT_DECLARATOR_LEFT_BRACKET_TYPE_QUALIFIER_LIST_ASSIGNMENT_EXPRESSION_RIGHT_BRACKET:
+  case NODE_TYPE_DIRECT_ABSTRACT_DECLARATOR_SUBTYPE_DIRECT_ABSTRACT_DECLARATOR_LEFT_BRACKET_TYPE_QUALIFIER_LIST_STATIC_ASSIGNMENT_EXPRESSION_RIGHT_BRACKET:
+  case NODE_TYPE_DIRECT_ABSTRACT_DECLARATOR_SUBTYPE_DIRECT_ABSTRACT_DECLARATOR_LEFT_BRACKET_TYPE_QUALIFIER_LIST_RIGHT_BRACKET: {
+    printf("%s:%d error:\n\tunsupported grammar in direct_abstract_declarator '%s'\n", input_file_name.c_str(),
+           direct_abstract_declarator->get_first_terminal_line_no(),
+           direct_abstract_declarator->get_expression().c_str());
+    return 1;
+  } break;
+
+  case NODE_TYPE_DIRECT_ABSTRACT_DECLARATOR_SUBTYPE_DIRECT_ABSTRACT_DECLARATOR_LEFT_BRACKET_ASSIGNMENT_EXPRESSION_RIGHT_BRACKET: {
+
+    std::shared_ptr<ast_node> next_direct_abstract_declarator = direct_abstract_declarator->items[0];
+    std::shared_ptr<ast_node> assignment_expression = direct_abstract_declarator->items[2];
+
+    next_direct_abstract_declarator->symbol = std::make_shared<tsc_symbol>();
+    next_direct_abstract_declarator->symbol->type = construct_array_of(direct_abstract_declarator->symbol->type);
+    semantics_analysis_result = analyze_assignment_expression(assignment_expression, context);
+    if (semantics_analysis_result)
+      return semantics_analysis_result;
+    if (!is_integer_constant(assignment_expression)) {
+      printf("%s:%d error:\n\tvla unsupported in direct_abstract_declarator '%s', expecting constant expression\n",
+             input_file_name.c_str(), direct_abstract_declarator->get_first_terminal_line_no(),
+             direct_abstract_declarator->get_expression().c_str());
+      return 1;
+    }
+    next_direct_abstract_declarator->symbol->type->array_length =
+        std::make_shared<int>(assignment_expression->symbol->value->int_value);
+    semantics_analysis_result =
+        analyze_direct_abstract_declarator(next_direct_abstract_declarator, context, out_anonymous_symbol);
+
+  } break;
+
+  case NODE_TYPE_DIRECT_ABSTRACT_DECLARATOR_SUBTYPE_LEFT_PARENTHESIS_RIGHT_PARENTHESIS: {
+    out_anonymous_symbol = std::make_shared<tsc_symbol>();
+    out_anonymous_symbol->symbol_type = SYMBOL_TYPE_FUNCTION;
+    out_anonymous_symbol->type = std::make_shared<tsc_type>();
+    out_anonymous_symbol->type->function_signature->return_type = direct_abstract_declarator->symbol->type;
+    out_anonymous_symbol->type->function_signature->has_proto = false;
+  } break;
+
+  case NODE_TYPE_DIRECT_ABSTRACT_DECLARATOR_SUBTYPE_LEFT_PARENTHESIS_PARAMETER_TYPE_LIST_RIGHT_PARENTHESIS: {
+  } break;
+
+  case NODE_TYPE_DIRECT_ABSTRACT_DECLARATOR_SUBTYPE_DIRECT_ABSTRACT_DECLARATOR_LEFT_PARENTHESIS_RIGHT_PARENTHESIS: {
+  } break;
+
+  case NODE_TYPE_DIRECT_ABSTRACT_DECLARATOR_SUBTYPE_DIRECT_ABSTRACT_DECLARATOR_LEFT_PARENTHESIS_PARAMETER_TYPE_LIST_RIGHT_PARENTHESIS: {
+  } break;
+  }
+  return semantics_analysis_result;
 }
 
 bool check_type_compatibility(std::shared_ptr<tsc_type> type1, std::shared_ptr<tsc_type> type2) {
@@ -2603,7 +2802,11 @@ int analyze_type_name(std::shared_ptr<ast_node> type_name, semantics_analysis_co
     semantics_analysis_result = analyze_specifier_qualifier_list(specifier_qualifier_list, context);
     if (semantics_analysis_result)
       return semantics_analysis_result;
-    //todo abstract declarator
+
+    abstract_declarator->symbol = specifier_qualifier_list->symbol;
+    std::shared_ptr<tsc_symbol> out_parameter_symbol;
+    semantics_analysis_result = analyze_abstract_declarator(abstract_declarator, context, out_parameter_symbol);
+    type_name->symbol = out_parameter_symbol;
   } break;
   case NODE_TYPE_TYPE_NAME_SUBTYPE_SPECIFIER_QUALIFIER_LIST: {
     std::shared_ptr<ast_node> specifier_qualifier_list = type_name->items[0];
@@ -3728,6 +3931,7 @@ std::shared_ptr<tsc_type> construct_pointer_to(std::shared_ptr<tsc_type> type) {
   std::shared_ptr<tsc_type> pointer = std::make_shared<tsc_type>();
   pointer->type_id = SCALAR_TYPE_POINTER;
   pointer->underlying_type = type;
+  pointer->type_size = sizeof(void *);
   return pointer;
 }
 std::shared_ptr<tsc_type> construct_array_of(std::shared_ptr<tsc_type> type) {

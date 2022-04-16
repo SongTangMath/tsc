@@ -1,4 +1,4 @@
-void func1(int a,int a);
+void func1(int a,int*,int** );
 void func(struct A{int;});
 struct B{
     double y;

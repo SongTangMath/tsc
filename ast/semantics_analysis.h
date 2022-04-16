@@ -237,4 +237,10 @@ int analyze_initializer(std::shared_ptr<ast_node> initializer, semantics_analysi
                         std::shared_ptr<tsc_symbol> &declarator_symbol);
 
 int analyze_parameter_declaration(std::shared_ptr<ast_node> parameter_declaration, semantics_analysis_context &context,
-                                  std::shared_ptr<tsc_symbol> &function_symbol,std::shared_ptr<ast_node>&out_identifier_node);
+                                  std::shared_ptr<tsc_symbol> &function_symbol,std::shared_ptr<tsc_symbol>&out_parameter_symbol);
+
+int analyze_abstract_declarator(std::shared_ptr<ast_node> abstract_declarator, semantics_analysis_context &context,
+                       std::shared_ptr<tsc_symbol> &out_anonymous_symbol);
+
+int analyze_direct_abstract_declarator(std::shared_ptr<ast_node> direct_abstract_declarator, semantics_analysis_context &context,
+                                       std::shared_ptr<tsc_symbol> &out_anonymous_symbol);
