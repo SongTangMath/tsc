@@ -36,7 +36,6 @@ std::shared_ptr<tsc_type> global_types::primitive_type_const_long_double;
 
 std::shared_ptr<tsc_type> global_types::primitive_type_sizeof;
 
-
 std::string ast_node::get_expression() {
   if (lexeme)
     return *lexeme;
@@ -81,12 +80,12 @@ std::string extract_string(std::string input) {
       break;
 
     case 'a':
-        case 'b':
-        case 'f':
-        case 'v':
-        case 't':
-        case 'r':
-        case 'n':
+    case 'b':
+    case 'f':
+    case 'v':
+    case 't':
+    case 'r':
+    case 'n':
       if (find_back_slash) {
         ret += escape_char(ch);
         find_back_slash = false;
@@ -94,7 +93,6 @@ std::string extract_string(std::string input) {
         ret += ch;
       }
       break;
-
 
     default:
       if (!in_quote)
@@ -105,47 +103,40 @@ std::string extract_string(std::string input) {
   return ret;
 }
 
-
-
-bool is_unsigned_suffix(const std::string& suffix){
-    return suffix.find('u')!=std::string::npos||suffix.find('U')!=std::string::npos;
+bool is_unsigned_suffix(const std::string &suffix) {
+  return suffix.find('u') != std::string::npos || suffix.find('U') != std::string::npos;
 }
 
-bool is_long_suffix(const std::string& suffix){
-    return (suffix.find('l')!=std::string::npos||suffix.find('L')!=std::string::npos)&&
-           (suffix.find("ll")==std::string::npos||suffix.find("LL")==std::string::npos);
+bool is_long_suffix(const std::string &suffix) {
+  return (suffix.find('l') != std::string::npos || suffix.find('L') != std::string::npos) &&
+         (suffix.find("ll") == std::string::npos || suffix.find("LL") == std::string::npos);
 }
 
-bool is_long_long_suffix(const std::string& suffix){
-    return
-            suffix.find("ll")!=std::string::npos||suffix.find("LL")!=std::string::npos;
+bool is_long_long_suffix(const std::string &suffix) {
+  return suffix.find("ll") != std::string::npos || suffix.find("LL") != std::string::npos;
 }
 
-bool is_long_double_suffix(const std::string& suffix){
-    return suffix=="l"|| suffix=="L";
-}
+bool is_long_double_suffix(const std::string &suffix) { return suffix == "l" || suffix == "L"; }
 
-bool is_float_suffix(const std::string& suffix){
-    return suffix=="f"|| suffix=="F";
-}
+bool is_float_suffix(const std::string &suffix) { return suffix == "f" || suffix == "F"; }
 
-char escape_char(char ch){
-    switch (ch) {
-        case 'a':
-            return '\a';
-        case 'b':
-            return '\b';
-        case 'f':
-            return '\f';
-        case 'v':
-            return '\v';
-        case 't':
-            return '\t';
-        case 'r':
-            return '\r';
-        case 'n':
-            return '\n';
-        default:
-            return ch;
-    }
+char escape_char(char ch) {
+  switch (ch) {
+  case 'a':
+    return '\a';
+  case 'b':
+    return '\b';
+  case 'f':
+    return '\f';
+  case 'v':
+    return '\v';
+  case 't':
+    return '\t';
+  case 'r':
+    return '\r';
+  case 'n':
+    return '\n';
+  default:
+    return ch;
+  }
 }

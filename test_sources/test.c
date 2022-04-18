@@ -1,3 +1,4 @@
+void func2(void);
 void func1(int a,int*,int** );
 void func(struct A{int;});
 struct B{
@@ -8,13 +9,12 @@ struct B{
     struct{int x1;};
 };
 int* const **p=(void*)0;
-
 int printf(const char* fmt,...);
 enum D;
 enum D;
 enum D{t};
 enum {z=1,z1=sizeof(enum D)};
-enum C{x=10/2-(1-2)+(2>1)+1/(2-1)+(1&2),y=x+1,y1=y+-1};
+enum C{x=10/2-(1-2)+(2>1)+1/(2-1)+(1&2),y=x+1,y1=y+-1+u};
 struct A{int;int;int x;int x1:5;double d;};
 
 int main(void) {

@@ -499,7 +499,7 @@ struct expression_value {
 
 struct tsc_symbol;
 struct tsc_function_signature;
-
+struct symbol_table_node;
 struct tsc_type {
   bool const_type_qualifier_set = false;
   bool restrict_type_qualifier_set = false;
@@ -561,6 +561,8 @@ struct tsc_function_signature {
   std::vector<std::shared_ptr<tsc_symbol>> parameter_symbols;
   // for K&R style function definition
   std::vector<std::string> identifiers;
+
+  std::shared_ptr<symbol_table_node> parameters_symbol_table_node;
 };
 
 struct global_types {
