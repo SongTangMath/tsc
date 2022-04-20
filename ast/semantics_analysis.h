@@ -31,7 +31,8 @@ enum {
   SYMBOL_TYPE_FUNCTION,
   SYMBOL_TYPE_ICONSTANT,
   SYMBOL_TYPE_FCONSTANT,
-  SYMBOL_TYPE_ENUMERATION_CONSTANT
+  SYMBOL_TYPE_ENUMERATION_CONSTANT,
+  SYMBOL_TYPE_POINTER_CONSTANT
 };
 
 enum {
@@ -70,7 +71,9 @@ enum {
   OPERATOR_POST_INC,
   OPERATOR_POST_DEC,
   OPERATOR_PRE_INC,
-  OPERATOR_PRE_DEC
+  OPERATOR_PRE_DEC,
+
+  OPERATOR_CAST
 };
 
 enum {
@@ -170,7 +173,7 @@ int check_floating_constant(std::shared_ptr<ast_node> floating_constant);
 
 int analyze_assignment_expression(std::shared_ptr<ast_node> assignment_expression, semantics_analysis_context &context);
 int analyze_argument_expression_list(std::shared_ptr<ast_node> argument_expression_list,
-                                     semantics_analysis_context &context,std::shared_ptr<tsc_type>function_type);
+                                     semantics_analysis_context &context, std::shared_ptr<tsc_type> function_type);
 
 int analyze_string(std::shared_ptr<ast_node> string_node, semantics_analysis_context &context);
 
@@ -181,6 +184,8 @@ bool is_array_or_pointer(const std::shared_ptr<ast_node> &node);
 bool is_integer(const std::shared_ptr<ast_node> &node);
 bool is_integer_or_floating_number(const std::shared_ptr<ast_node> &node);
 bool is_struct_union_enum_number(const std::shared_ptr<ast_node> &node);
+
+bool is_scalar_type(const std::shared_ptr<tsc_type> &type);
 
 std::shared_ptr<tsc_symbol> lookup_variable_symbol(std::shared_ptr<symbol_table_node> symbol_table_node,
                                                    const std::string &symbol_identifier, bool search_outer);
@@ -244,7 +249,7 @@ int add_nested_anonymous_struct_fields_to_parent_struct(std::shared_ptr<tsc_symb
                                                         semantics_analysis_context &context);
 
 int analyze_initializer(std::shared_ptr<ast_node> initializer, semantics_analysis_context &context,
-                        std::shared_ptr<tsc_symbol> &declarator_symbol);
+                        std::shared_ptr<tsc_symbol> symbol_to_initialize);
 
 int analyze_parameter_declaration(std::shared_ptr<ast_node> parameter_declaration, semantics_analysis_context &context,
                                   std::shared_ptr<tsc_symbol> &function_symbol,
@@ -258,4 +263,10 @@ int analyze_direct_abstract_declarator(std::shared_ptr<ast_node> direct_abstract
                                        std::shared_ptr<tsc_symbol> &out_anonymous_symbol);
 
 int check_function_or_pointer_to_function(std::shared_ptr<ast_node> postfix_expression,
-                                          semantics_analysis_context &context,std::shared_ptr<tsc_type>&out_function_type);
+                                          semantics_analysis_context &context,
+                                          std::shared_ptr<tsc_type> &out_function_type);
+
+int analyze_initializer_list(std::shared_ptr<ast_node> initializer_list, semantics_analysis_context &context,
+                             std::shared_ptr<tsc_symbol> &symbol_to_initialize);
+
+bool check_can_assign(const std::shared_ptr<tsc_symbol> &left,const std::shared_ptr<tsc_symbol> &right);

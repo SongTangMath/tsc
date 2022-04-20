@@ -8,6 +8,9 @@ struct B{
     struct B* p;
     struct{int x1;};
 };
+
+int global_array[]={1+3/1,2,5};
+int global_int=sizeof(global_array);
 int* const **p=(void*)0;
 int printf(const char* fmt,...);
 enum D;

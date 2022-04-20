@@ -92,6 +92,7 @@ int analyze_declaration(std::shared_ptr<ast_node> declaration, semantics_analysi
       return semantics_analysis_result;
     //如果有init_declarator_list,可能是声明一个类型如struct A{...} a;此时也需要加入tags且A必须是complete type
     //注意指针变量的声明 struct A *p;则A可以是incomplete
+    //todo for global variables, initializer must be constant
   } break;
   case NODE_TYPE_DECLARATION_SUBTYPE_STATIC_ASSERT_DECLARATION:
     printf("%s:%d error:\n\tstatic_assert_declaration not supported\n", input_file_name.c_str(),
@@ -2587,7 +2588,7 @@ int analyze_cast_expression(std::shared_ptr<ast_node> cast_expression, semantics
   break;
   case NODE_TYPE_CAST_EXPRESSION_SUBTYPE_LEFT_PARENTHESIS_TYPE_NAME_RIGHT_PARENTHESIS_CAST_EXPRESSION:
     std::shared_ptr<ast_node> type_name = cast_expression->items[1];
-    std::shared_ptr<tsc_type> type_out = std::make_shared<tsc_type>();
+
     semantics_analysis_result = analyze_type_name(type_name, context);
     if (semantics_analysis_result)
       return semantics_analysis_result;
@@ -2597,12 +2598,33 @@ int analyze_cast_expression(std::shared_ptr<ast_node> cast_expression, semantics
     if (semantics_analysis_result)
       return semantics_analysis_result;
     cast_expression->symbol = std::make_shared<tsc_symbol>();
-    // todo 对 const expression 强转还是 const expression 如 (int)1.0f
+
     // struct_union 不能强转为primitive type. 反之primitive type也不能转为 struct_union
     // 不能直接将double转为指针类型(gcc)
-    cast_expression->symbol->symbol_type = SYMBOL_TYPE_TEMPORARY_VARIABLE;
-    cast_expression->symbol->type = type_out;
 
+    if (!check_can_assign(type_name->symbol, next_cast_expression->symbol)) {
+      printf("%s:%d error:\n\t operand of type '%s' cannot be cast to '%s'\n", input_file_name.c_str(),
+             cast_expression->get_first_terminal_line_no(), next_cast_expression->symbol->type->internal_name->c_str(),
+             type_name->symbol->type->internal_name->c_str());
+      return 1;
+    }
+
+    cast_expression->symbol->symbol_type = SYMBOL_TYPE_TEMPORARY_VARIABLE;
+    if (is_constant(next_cast_expression)) {
+      if (PRIMITIVE_TYPE_CHAR <= type_name->symbol->type->type_id &&
+          type_name->symbol->type->type_id <= PRIMITIVE_TYPE_UNSIGNED_LONG_LONG)
+        cast_expression->symbol->symbol_type = SYMBOL_TYPE_ICONSTANT;
+      else if (PRIMITIVE_TYPE_FLOAT <= type_name->symbol->type->type_id &&
+               type_name->symbol->type->type_id <= PRIMITIVE_TYPE_LONG_DOUBLE)
+        cast_expression->symbol->symbol_type = SYMBOL_TYPE_FCONSTANT;
+      else if (type_name->symbol->type->type_id == SCALAR_TYPE_POINTER)
+        cast_expression->symbol->symbol_type = SYMBOL_TYPE_POINTER_CONSTANT;
+    }
+
+    cast_expression->symbol->type = type_name->symbol->type;
+    cast_expression->symbol->operator_id = OPERATOR_CAST;
+    cast_expression->symbol->operands.push_back(type_name->symbol);
+    cast_expression->symbol->operands.push_back(next_cast_expression->symbol);
     break;
   }
 
@@ -2801,7 +2823,7 @@ int analyze_unary_expression(std::shared_ptr<ast_node> unary_expression, semanti
     if (semantics_analysis_result)
       return semantics_analysis_result;
 
-    if (!check_complete_type(unary_expression->symbol->type)) {
+    if (!check_complete_type(next_unary_expression->symbol->type)) {
       printf("%s:%d error:\n\tinvalid application of 'sizeof' to an incomplete type '%s' in unary_expression\n",
              input_file_name.c_str(), unary_expression->get_first_terminal_line_no(),
              next_unary_expression->symbol->type->internal_name->c_str());
@@ -3002,7 +3024,22 @@ int analyze_postfix_expression(std::shared_ptr<ast_node> postfix_expression, sem
       return semantics_analysis_result;
     }
     std::string identifier = *postfix_expression->items[2]->lexeme;
-    //todo check if type has this member
+    std::shared_ptr<tsc_symbol> symbol;
+    for (std::shared_ptr<tsc_symbol> field_symbol : type->fields) {
+      if (field_symbol->identifier && *field_symbol->identifier == identifier) {
+        symbol = field_symbol;
+        break;
+      }
+    }
+    if (!symbol) {
+      printf("%s:%d error:\n\tno member named '%s' in '%s'\n", input_file_name.c_str(),
+             next_postfix_expression->get_first_terminal_line_no(), identifier.c_str(), type->internal_name->c_str());
+
+      return 1;
+    }
+    postfix_expression->symbol->operator_id = OPERATOR_MEMBER_ACCESS;
+    postfix_expression->symbol->operands.push_back(next_postfix_expression->symbol);
+    postfix_expression->symbol->operands.push_back(symbol);
 
   } break;
   case NODE_TYPE_POSTFIX_EXPRESSION_SUBTYPE_POSTFIX_EXPRESSION_PTR_OP_IDENTIFIER: {
@@ -3029,6 +3066,22 @@ int analyze_postfix_expression(std::shared_ptr<ast_node> postfix_expression, sem
       semantics_analysis_result = 1;
       return semantics_analysis_result;
     }
+    std::shared_ptr<tsc_symbol> symbol;
+    for (std::shared_ptr<tsc_symbol> field_symbol : type->fields) {
+      if (field_symbol->identifier && *field_symbol->identifier == identifier) {
+        symbol = field_symbol;
+        break;
+      }
+    }
+    if (!symbol) {
+      printf("%s:%d error:\n\tno member named '%s' in '%s'\n", input_file_name.c_str(),
+             next_postfix_expression->get_first_terminal_line_no(), identifier.c_str(), type->internal_name->c_str());
+
+      return 1;
+    }
+    postfix_expression->symbol->operator_id = OPERATOR_POINTER_MEMBER_ACCESS;
+    postfix_expression->symbol->operands.push_back(next_postfix_expression->symbol);
+    postfix_expression->symbol->operands.push_back(symbol);
 
   } break;
   case NODE_TYPE_POSTFIX_EXPRESSION_SUBTYPE_POSTFIX_EXPRESSION_INC_OP:
@@ -3081,6 +3134,16 @@ int analyze_postfix_expression(std::shared_ptr<ast_node> postfix_expression, sem
     semantics_analysis_result = analyze_type_name(type_name, context);
     if (semantics_analysis_result)
       return semantics_analysis_result;
+    // type must be complete
+    if (!type_name->symbol->type->is_complete) {
+      printf("%s:%d error:\n\t '%s' has incomplete type '%s'\n", input_file_name.c_str(),
+             postfix_expression->get_first_terminal_line_no(), postfix_expression->get_expression().c_str(),
+             type_name->symbol->type->internal_name->c_str());
+      semantics_analysis_result = 1;
+      return semantics_analysis_result;
+    }
+
+    semantics_analysis_result = analyze_initializer_list(initializer_list, context, type_name->symbol);
 
   }
 
@@ -3333,6 +3396,7 @@ int analyze_string(std::shared_ptr<ast_node> string_node, semantics_analysis_con
     string_node->symbol->memory_location = std::make_shared<tsc_memory_location>();
     break;
   case NODE_TYPE_STRING_SUBTYPE_FUNC_NAME:
+    //todo support __func__
     printf("%s:%d error:\n\tunsupported C99 '__func__' in string\n", input_file_name.c_str(),
            string_node->get_first_terminal_line_no());
     semantics_analysis_result = 1;
@@ -3506,7 +3570,8 @@ bool is_floating_constant(const std::shared_ptr<ast_node> &node) {
 
 bool is_constant(const std::shared_ptr<ast_node> &node) {
   //注意不包括string literal.字符串字面量有内存地址,需要特殊处理
-  return is_integer_constant(node) || is_floating_constant(node);
+  return is_integer_constant(node) || is_floating_constant(node) ||
+         node->symbol->symbol_type == SYMBOL_TYPE_POINTER_CONSTANT;
 }
 bool is_array_or_pointer(const std::shared_ptr<ast_node> &node) {
   return node->symbol->type->type_id == SCALAR_TYPE_ARRAY || node->symbol->type->type_id == SCALAR_TYPE_POINTER;
@@ -3524,6 +3589,10 @@ bool is_struct_union_enum_number(const std::shared_ptr<ast_node> &node) {
   default:
     return false;
   }
+}
+bool is_scalar_type(const std::shared_ptr<tsc_type> &type) {
+  return type->type_id == SCALAR_TYPE_POINTER ||
+         PRIMITIVE_TYPE_CHAR <= type->type_id && type->type_id <= PRIMITIVE_TYPE_LONG_DOUBLE;
 }
 
 bool is_integer(const std::shared_ptr<ast_node> &node) {
@@ -3846,7 +3915,9 @@ int analyze_init_declarator(std::shared_ptr<ast_node> init_declarator, semantics
              init_declarator->get_first_terminal_line_no(), out_identifier_node->symbol->identifier->c_str());
       return 1;
     }
-    if (!check_complete_type(out_identifier_node->symbol->type)) {
+    // after initialize array become complete
+    if (!check_complete_type(out_identifier_node->symbol->type) &&
+        out_identifier_node->symbol->type->type_id != SCALAR_TYPE_ARRAY) {
       printf("%s:%d error:\n\tstorage size of '%s' isn’t known\n", input_file_name.c_str(),
              init_declarator->get_first_terminal_line_no(), out_identifier_node->symbol->identifier->c_str());
       return 1;
@@ -3857,8 +3928,9 @@ int analyze_init_declarator(std::shared_ptr<ast_node> init_declarator, semantics
         add_declarator_identifier_to_symbol_table(init_declarator, context, out_identifier_node);
     if (semantics_analysis_result)
       return semantics_analysis_result;
-    semantics_analysis_result = analyze_initializer(initializer, context, declarator->symbol);
 
+    semantics_analysis_result = analyze_initializer(initializer, context, out_identifier_node->symbol);
+    //todo check declarator->symbol and initializer symbol compatibility
   }
 
   break;
@@ -3894,9 +3966,35 @@ initializer
  */
 
 int analyze_initializer(std::shared_ptr<ast_node> initializer, semantics_analysis_context &context,
-                        std::shared_ptr<tsc_symbol> &declarator_symbol) {
-  //todo analyze initializer
+                        std::shared_ptr<tsc_symbol> symbol_to_initialize) {
+  int semantics_analysis_result = 0;
+  //symbol_to_initialize could be nullptr when no need to assign
+  switch (initializer->node_sub_type) {
+  case NODE_TYPE_INITIALIZER_SUBTYPE_LEFT_BRACE_INITIALIZER__LIST_RIGHT_BRACE:
+  case NODE_TYPE_INITIALIZER_SUBTYPE_LEFT_BRACE_INITIALIZER__LIST_COMMA_RIGHT_BRACE: {
+    std::shared_ptr<ast_node> initializer_list = initializer->items[1];
+    semantics_analysis_result = analyze_initializer_list(initializer_list, context, symbol_to_initialize);
+
+  } break;
+  case NODE_TYPE_INITIALIZER_SUBTYPE_ASSIGNMENT_EXPRESSION: {
+    std::shared_ptr<ast_node> assignment_expression = initializer->items[0];
+    semantics_analysis_result = analyze_assignment_expression(assignment_expression, context);
+
+    if (symbol_to_initialize && !check_can_assign(symbol_to_initialize, assignment_expression->symbol)) {
+      printf("%s:%d error:\n\tinitializing '%s' with an expression of incompatible type '%s'\n",
+             input_file_name.c_str(), initializer->get_first_terminal_line_no(),
+             initializer->symbol->type->internal_name->c_str(),
+             assignment_expression->symbol->type->internal_name->c_str());
+      return 1;
+    }
+  }
+  }
+
   return 0;
+}
+bool check_can_assign(const std::shared_ptr<tsc_symbol> &left, const std::shared_ptr<tsc_symbol> &right) {
+  //todo
+  return true;
 }
 
 int add_declarator_identifier_to_symbol_table(std::shared_ptr<ast_node> init_declarator,
@@ -4016,6 +4114,158 @@ int analyze_specifier_qualifier_list(std::shared_ptr<ast_node> specifier_qualifi
     return semantics_analysis_result;
   specifier_qualifier_list->symbol = symbol;
   return 0;
+}
+/*
+initializer_list
+	: designation initializer
+	| initializer
+	| initializer_list ',' designation initializer
+	| initializer_list ',' initializer
+	;
+ */
+int analyze_initializer_list(std::shared_ptr<ast_node> initializer_list, semantics_analysis_context &context,
+                             std::shared_ptr<tsc_symbol> &symbol_to_initialize) {
+  // https://gcc.gnu.org/onlinedocs/gcc/Designated-Inits.html
+  // Omitted field members are implicitly initialized the same as objects that have static storage duration
+  int semantics_analysis_result = 0;
+  // symbol_to_initialize could be nullptr
+  std::vector<std::vector<std::shared_ptr<ast_node>>> &initializer_or_designation_initializers =
+      initializer_list->initializer_or_designation_initializers;
+  std::shared_ptr<ast_node> node = initializer_list;
+  while (true) {
+    bool has_next = true;
+    switch (node->node_sub_type) {
+    case NODE_TYPE_INITIALIZER_LIST_SUBTYPE_DESIGNATION_INITIALIZER:
+      initializer_or_designation_initializers.push_back({node->items[0], node->items[1]});
+      has_next = false;
+      break;
+    case NODE_TYPE_INITIALIZER_LIST_SUBTYPE_INITIALIZER:
+      initializer_or_designation_initializers.push_back({node->items[0]});
+      has_next = false;
+      break;
+    case NODE_TYPE_INITIALIZER_LIST_SUBTYPE_INITIALIZER_LIST_COMMA_DESIGNATION_INITIALIZER:
+      initializer_or_designation_initializers.push_back({node->items[2], node->items[3]});
+      node = node->items[0];
+      break;
+    case NODE_TYPE_INITIALIZER_LIST_SUBTYPE_INITIALIZER_LIST_COMMA_INITIALIZER:
+      initializer_or_designation_initializers.push_back({node->items[2]});
+      node = node->items[0];
+      break;
+    }
+    if (!has_next)
+      break;
+  }
+
+  initializer_or_designation_initializers = std::vector<std::vector<std::shared_ptr<ast_node>>>(
+      initializer_or_designation_initializers.rbegin(), initializer_or_designation_initializers.rend());
+
+  // int i={0}; ->OK
+  // int i={0,1} or struct A{} a; int i={0,a}->OK. warning: excess elements in scalar initializer
+  // if identifier 'a' is not defined int i={0,a}->error
+  // int a[1]={0,1} ->OK. warning: excess elements in array initializer
+  // int b={[0]=2}; ->error designator in initializer for scalar type 'int'
+
+  bool is_scalar = symbol_to_initialize && is_scalar_type(symbol_to_initialize->type);
+  if (is_scalar && initializer_or_designation_initializers.size() > 1) {
+    printf("%s:%d warning:\n\texcess elements in scalar '%s' initializer\n", input_file_name.c_str(),
+           initializer_list->get_first_terminal_line_no(), symbol_to_initialize->type->internal_name->c_str());
+  }
+  //array or struct or union
+  int initialize_index = 0;
+  //for array
+  int max_initialize_index = 0;
+  for (size_t index = 0; index < initializer_or_designation_initializers.size(); index++) {
+    const std::vector<std::shared_ptr<ast_node>> &initializer_or_designation_initializer =
+        initializer_or_designation_initializers[index];
+
+    std::shared_ptr<ast_node> initializer;
+    switch (initializer_or_designation_initializer.size()) {
+    case 1: {
+      initializer = initializer_or_designation_initializer[0];
+    } break;
+    case 2: {
+      std::shared_ptr<ast_node> designation = initializer_or_designation_initializer[0];
+      initializer = initializer_or_designation_initializer[1];
+
+      if (is_scalar) {
+        printf("%s:%d error:\n\tdesignator in initializer for scalar type '%s'\n", input_file_name.c_str(),
+               initializer_list->get_first_terminal_line_no(), symbol_to_initialize->type->internal_name->c_str());
+        semantics_analysis_result = 1;
+        return semantics_analysis_result;
+      }
+      //todo analyze designation and construct designation symbol
+    } break;
+    }
+
+    semantics_analysis_result = analyze_initializer(initializer, context, symbol_to_initialize);
+    if (semantics_analysis_result)
+      return semantics_analysis_result;
+    if (symbol_to_initialize) {
+
+      if (is_scalar) {
+        if (index == 0) {
+          semantics_analysis_result = analyze_initializer(initializer, context, symbol_to_initialize);
+        } else {
+          // no symbol to initialize, but still need to analyze_initializer
+          semantics_analysis_result = analyze_initializer(initializer, context, std::shared_ptr<tsc_symbol>());
+        }
+        if (semantics_analysis_result)
+          return semantics_analysis_result;
+      } else {
+        //not scalar, could be array or struct_union
+        std::shared_ptr<tsc_symbol> next_symbol_to_initialize = std::make_shared<tsc_symbol>();
+        //todo construct next_symbol_to_initialize
+        switch (symbol_to_initialize->type->type_id) {
+        case SCALAR_TYPE_ARRAY: {
+          // int a1[1]={1,2}; int a1[2]={[1]=2,2}; ->warning: excess elements in array initializer
+          if (symbol_to_initialize->type->is_complete && *symbol_to_initialize->type->array_length < initialize_index) {
+            printf("%s:%d warning:\n\texcess elements in array initializer\n", input_file_name.c_str(),
+                   initializer_list->get_first_terminal_line_no());
+          } else {
+
+            semantics_analysis_result = analyze_initializer(initializer, context, next_symbol_to_initialize);
+            if (semantics_analysis_result)
+              return semantics_analysis_result;
+          }
+          max_initialize_index = std::max(max_initialize_index, initialize_index);
+        } break;
+        case RECORD_TYPE_STRUCT_OR_UNION: {
+          if (initialize_index >= symbol_to_initialize->type->fields.size()) {
+            printf("%s:%d warning:\n\texcess elements in '%s' initializer\n", input_file_name.c_str(),
+                   initializer_list->get_first_terminal_line_no(), symbol_to_initialize->type->internal_name->c_str());
+
+          } else {
+            semantics_analysis_result = analyze_initializer(initializer, context, next_symbol_to_initialize);
+            if (semantics_analysis_result)
+              return semantics_analysis_result;
+          }
+
+        } break;
+        default:
+          printf("%s:%d error:\n\tshould not reach here\n", input_file_name.c_str(),
+                 initializer_list->get_first_terminal_line_no());
+          return 1;
+        }
+        initialize_index++;
+      }
+    }
+
+    else {
+      // here symbol_to_initialize = nullptr
+      semantics_analysis_result = analyze_initializer(initializer, context, symbol_to_initialize);
+      if (semantics_analysis_result)
+        return semantics_analysis_result;
+    }
+  }
+  // after assign, array type is complete
+  // int a[]={[10]=2,[2]=10}; -> sizeof(a)=44
+  if (symbol_to_initialize && symbol_to_initialize->type->type_id == SCALAR_TYPE_ARRAY &&
+      !symbol_to_initialize->type->is_complete) {
+    symbol_to_initialize->type->is_complete = true;
+    symbol_to_initialize->type->array_length = std::make_shared<int>(max_initialize_index + 1);
+  }
+
+  return semantics_analysis_result;
 }
 
 void setup_type_system() {
@@ -4193,6 +4443,7 @@ std::shared_ptr<tsc_type> construct_pointer_to(std::shared_ptr<tsc_type> type) {
   pointer->type_id = SCALAR_TYPE_POINTER;
   pointer->underlying_type = type;
   pointer->type_size = sizeof(void *);
+  pointer->internal_name = std::make_shared<std::string>("pointer");
   return pointer;
 }
 std::shared_ptr<tsc_type> construct_array_of(std::shared_ptr<tsc_type> type) {
@@ -4200,6 +4451,7 @@ std::shared_ptr<tsc_type> construct_array_of(std::shared_ptr<tsc_type> type) {
   array->type_id = SCALAR_TYPE_ARRAY;
   array->underlying_type = type;
   array->const_type_qualifier_set = true;
+  array->internal_name = std::make_shared<std::string>("array");
   return array;
 }
 

@@ -373,7 +373,7 @@
 #define NODE_TYPE_INITIALIZER_LIST_SUBTYPE_DESIGNATION_INITIALIZER 1
 #define NODE_TYPE_INITIALIZER_LIST_SUBTYPE_INITIALIZER 2
 #define NODE_TYPE_INITIALIZER_LIST_SUBTYPE_INITIALIZER_LIST_COMMA_DESIGNATION_INITIALIZER 3
-#define NODE_TYPE_INITIALIZER_LIST_SUBTYPE_INITIALIZER_LIST_COMMA_INITIALIZER 3
+#define NODE_TYPE_INITIALIZER_LIST_SUBTYPE_INITIALIZER_LIST_COMMA_INITIALIZER 4
 
 #define NODE_TYPE_DESIGNATION 61
 #define NODE_TYPE_DESIGNATION_SUBTYPE_DESIGNATOR_LIST_ASSIGN 1
@@ -507,7 +507,7 @@ struct tsc_type {
 
   std::shared_ptr<std::string> internal_name;
   // nullptr for primitive types and anonymous struct_union_enum
-    std::shared_ptr<std::string> name;
+  std::shared_ptr<std::string> name;
   // for functions
   bool is_inline = false;
   bool is_noreturn = false;
@@ -621,6 +621,9 @@ struct ast_node {
   // for top expression it's all sub assignment_expressions
   std::vector<std::shared_ptr<ast_node>> sub_nodes;
 
+  //used when this node is initializer_list
+  std::vector<std::vector<std::shared_ptr<ast_node>>> initializer_or_designation_initializers;
+
   std::string get_expression();
   int get_first_terminal_line_no();
 };
@@ -636,9 +639,4 @@ bool is_long_long_suffix(const std::string &suffix);
 bool is_long_double_suffix(const std::string &suffix);
 bool is_float_suffix(const std::string &suffix);
 
-int evaluate(std::string operator_token, int left, int right);
-double evaluate(std::string operator_token, int left, double right);
-double evaluate(std::string operator_token, double left, double right);
-double evaluate(std::string operator_token, double left, int right);
-expression_value evaluate(std::shared_ptr<ast_node> node);
 #endif

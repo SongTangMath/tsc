@@ -2351,7 +2351,7 @@ initializer_list
         node.node_sub_type = NODE_TYPE_INITIALIZER_LIST_SUBTYPE_INITIALIZER_LIST_COMMA_INITIALIZER;
         node.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //initializer_list
 		node.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //COMMA
-		node.items.push_back(std::shared_ptr<ast_node>(new ast_node($3))); //designation
+		node.items.push_back(std::shared_ptr<ast_node>(new ast_node($3))); //initializer
         $$=node;
     }
 	;
