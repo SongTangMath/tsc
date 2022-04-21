@@ -102,8 +102,71 @@ int analyze_declaration(std::shared_ptr<ast_node> declaration, semantics_analysi
 
   return 0;
 }
+/*
+function_definition
+	: declaration_specifiers declarator declaration_list compound_statement
+	| declaration_specifiers declarator compound_statement
+	;
 
+declaration_list
+	: declaration
+	| declaration_list declaration
+	;
+*/
 int analyze_function_definition(std::shared_ptr<ast_node> function_definition, semantics_analysis_context &context) {
+
+  // declarator的最底层declarator必须是函数.形如 int a{}也符合文法但不是合法的function_definition
+  // 处理 K&R style
+  int semantics_analysis_result = 0;
+  std::shared_ptr<ast_node> declaration_specifiers = function_definition->items[0];
+  std::shared_ptr<ast_node> declarator = function_definition->items[1];
+  declarator->symbol = std::make_shared<tsc_symbol>();
+  declarator->symbol->type = std::make_shared<tsc_type>();
+  std::shared_ptr<ast_node> out_identifier_node;
+
+  semantics_analysis_result = analyze_declaration_specifiers(declaration_specifiers, context, declarator->symbol,
+                                                             DECLARATION_SPECIFIERS_LOCATION_DECLARATION);
+  if (semantics_analysis_result)
+    return semantics_analysis_result;
+  semantics_analysis_result = analyze_declarator(declarator, context, out_identifier_node);
+  if (semantics_analysis_result)
+    return semantics_analysis_result;
+  if (out_identifier_node->symbol->symbol_type != SYMBOL_TYPE_FUNCTION) {
+    printf("%s:%d error:\n\texpecting function declarator\n", input_file_name.c_str(),
+           declarator->get_first_terminal_line_no());
+    return 1;
+  }
+
+  switch (function_definition->node_sub_type) {
+  case NODE_TYPE_FUNCTION_DEFINITION_SUBTYPE_DECLARATION_SPECIFIERS_DECLARATOR_DECLARATION_LIST_COMPOUND_STATEMENT: {
+    std::shared_ptr<ast_node> declaration_list = function_definition->items[2];
+    std::shared_ptr<ast_node> compound_statement = function_definition->items[3];
+
+    std::vector<std::shared_ptr<ast_node>> declarations;
+    std::shared_ptr<ast_node> node = declaration_list;
+    while (node->node_type == NODE_TYPE_DECLARATION_LIST &&
+           node->node_sub_type == NODE_TYPE_DECLARATION_LIST_SUBTYPE_DECLARATION_LIST_DECLARATION) {
+      declarations.push_back(node->items[1]);
+      node = node->items[0];
+    }
+
+    declarations.push_back(node->items[0]);
+    declarations = std::vector<std::shared_ptr<ast_node>>(declarations.rbegin(), declarations.rend());
+    //todo K&R style 这里需要切换符号表
+    for (std::shared_ptr<ast_node> declaration : declarations) {
+      std::shared_ptr<tsc_symbol> symbol = std::make_shared<tsc_symbol>();
+      symbol->type = std::make_shared<tsc_type>();
+      semantics_analysis_result = analyze_declaration(declaration, context, symbol);
+      if (semantics_analysis_result)
+        return semantics_analysis_result;
+    }
+
+  } break;
+  case NODE_TYPE_FUNCTION_DEFINITION_SUBTYPE_DECLARATION_SPECIFIERS_DECLARATOR_COMPOUND_STATEMENT: {
+    std::shared_ptr<ast_node> compound_statement = function_definition->items[2];
+
+  } break;
+  }
   return 0;
 }
 
@@ -1311,17 +1374,21 @@ int analyze_direct_declarator(std::shared_ptr<ast_node> direct_declarator, seman
   // 第一个p是一个数组,数组元素为int* 第二个p是指向int[5]的指针
   switch (direct_declarator->node_sub_type) {
   case NODE_TYPE_DIRECT_DECLARATOR_SUBTYPE_IDENTIFIER: {
+    // IDENTIFIER
     out_identifier_node = direct_declarator->items[0];
     direct_declarator->symbol->identifier = out_identifier_node->lexeme;
     out_identifier_node->symbol = direct_declarator->symbol;
   } break;
   case NODE_TYPE_DIRECT_DECLARATOR_SUBTYPE_LEFT_PARENTHESIS_DECLARATOR_RIGHT_PARENTHESIS: {
-    std::shared_ptr<ast_node> next_direct_declarator = direct_declarator->items[0];
-    next_direct_declarator->symbol = direct_declarator->symbol;
-    semantics_analysis_result = analyze_direct_declarator(next_direct_declarator, context, out_identifier_node);
+    // '(' declarator ')'
+    std::shared_ptr<ast_node> declarator = direct_declarator->items[0];
+    semantics_analysis_result = analyze_declarator(declarator, context, out_identifier_node);
+    if (semantics_analysis_result)
+      return semantics_analysis_result;
+    direct_declarator->symbol = declarator->symbol;
   } break;
   case NODE_TYPE_DIRECT_DECLARATOR_SUBTYPE_DIRECT_DECLARATOR_LEFT_BRACKET_RIGHT_BRACKET: {
-
+    //direct_declarator '[' ']'
     std::shared_ptr<ast_node> next_direct_declarator = direct_declarator->items[0];
     next_direct_declarator->symbol = std::make_shared<tsc_symbol>();
     next_direct_declarator->symbol->type = construct_array_of(direct_declarator->symbol->type);
@@ -1342,6 +1409,7 @@ int analyze_direct_declarator(std::shared_ptr<ast_node> direct_declarator, seman
     return 1;
 
   case NODE_TYPE_DIRECT_DECLARATOR_SUBTYPE_DIRECT_DECLARATOR_LEFT_BRACKET_ASSIGNMENT_EXPRESSION_RIGHT_BRACKET: {
+    // direct_declarator '[' assignment_expression ']'
     //不支持VLA
 
     std::shared_ptr<ast_node> next_direct_declarator = direct_declarator->items[0];
@@ -1364,7 +1432,7 @@ int analyze_direct_declarator(std::shared_ptr<ast_node> direct_declarator, seman
 
   } break;
   case NODE_TYPE_DIRECT_DECLARATOR_SUBTYPE_DIRECT_DECLARATOR_LEFT_PARENTHESIS_PARAMETER_TYPE_LIST_RIGHT_PARENTHESIS: {
-
+    // direct_declarator '(' parameter_type_list ')'
     std::shared_ptr<ast_node> next_direct_declarator = direct_declarator->items[0];
     std::shared_ptr<ast_node> parameter_type_list = direct_declarator->items[2];
 
@@ -1383,7 +1451,7 @@ int analyze_direct_declarator(std::shared_ptr<ast_node> direct_declarator, seman
 
   } break;
   case NODE_TYPE_DIRECT_DECLARATOR_SUBTYPE_DIRECT_DECLARATOR_LEFT_PARENTHESIS_RIGHT_PARENTHESIS: {
-
+    //direct_declarator '(' ')'
     std::shared_ptr<ast_node> next_direct_declarator = direct_declarator->items[0];
 
     next_direct_declarator->symbol = std::make_shared<tsc_symbol>();
@@ -1395,10 +1463,15 @@ int analyze_direct_declarator(std::shared_ptr<ast_node> direct_declarator, seman
     next_direct_declarator->symbol->type->function_signature->has_proto = false;
     if (semantics_analysis_result)
       return semantics_analysis_result;
+    //locate for future use
+    next_direct_declarator->symbol->type->function_signature->parameters_symbol_table_node =
+        std::make_shared<symbol_table_node>();
+
     semantics_analysis_result = analyze_direct_declarator(next_direct_declarator, context, out_identifier_node);
 
   } break;
   case NODE_TYPE_DIRECT_DECLARATOR_SUBTYPE_DIRECT_DECLARATOR_LEFT_PARENTHESIS_IDENTIFIER_LIST_RIGHT_PARENTHESIS: {
+    // direct_declarator '(' identifier_list ')'
     std::shared_ptr<ast_node> next_direct_declarator = direct_declarator->items[0];
     std::shared_ptr<ast_node> identifier_list = direct_declarator->items[2];
 
@@ -1427,6 +1500,8 @@ int analyze_direct_declarator(std::shared_ptr<ast_node> direct_declarator, seman
     for (std::shared_ptr<ast_node> &identifier_node : identifier_nodes) {
       next_direct_declarator->symbol->type->function_signature->identifiers.push_back(*identifier_node->lexeme);
     }
+    next_direct_declarator->symbol->type->function_signature->parameters_symbol_table_node =
+        std::make_shared<symbol_table_node>();
 
     semantics_analysis_result = analyze_direct_declarator(next_direct_declarator, context, out_identifier_node);
 
@@ -1578,12 +1653,16 @@ int analyze_parameter_type_list(std::shared_ptr<ast_node> parameter_type_list, s
         return 1;
       } else {
         parameter_identifiers.insert(*parameter_symbol->identifier);
+        //参数可以是匿名的,函数内部访问不到
+        function_symbol->type->function_signature->parameters_symbol_table_node
+            ->identifier_and_symbols[*parameter_symbol->identifier] = parameter_symbol;
       }
     }
     if (parameter_symbol->type == global_types::primitive_type_void ||
         parameter_symbol->type == global_types::primitive_type_const_void) {
       parameter_is_void = true;
     }
+    function_symbol->type->function_signature->parameter_is_void = parameter_is_void;
     function_symbol->type->function_signature->parameter_symbols.push_back(parameter_symbol);
   }
 
@@ -2061,6 +2140,15 @@ int analyze_conditional_expression(std::shared_ptr<ast_node> conditional_express
       conditional_expression->symbol = std::make_shared<tsc_symbol>();
       conditional_expression->symbol->is_left_value = false;
       conditional_expression->symbol->symbol_type = SYMBOL_TYPE_TEMPORARY_VARIABLE;
+      semantics_analysis_result =
+          check_common_type(expression, next_conditional_expression, conditional_expression->symbol->type);
+      if (semantics_analysis_result)
+        return semantics_analysis_result;
+
+      conditional_expression->symbol->operator_id = OPERATOR_QUESTION_COLON;
+      conditional_expression->symbol->operands.push_back(logical_or_expression->symbol);
+      conditional_expression->symbol->operands.push_back(expression->symbol);
+      conditional_expression->symbol->operands.push_back(next_conditional_expression->symbol);
     }
   }
 
@@ -2648,15 +2736,10 @@ int analyze_unary_expression(std::shared_ptr<ast_node> unary_expression, semanti
   switch (unary_expression->node_sub_type) {
   case NODE_TYPE_UNARY_EXPRESSION_SUBTYPE_POSTFIX_EXPRESSION: {
     std::shared_ptr<ast_node> postfix_expression = unary_expression->items[0];
-    semantics_analysis_result = analyze_postfix_expression(postfix_expression, context, SYMBOL_TYPE_VARIABLE);
+    semantics_analysis_result = analyze_postfix_expression(postfix_expression, context);
     if (semantics_analysis_result)
       return semantics_analysis_result;
 
-    if (!postfix_expression->symbol) {
-      printf("%s:%d error:\n\tidentifier '%s' not found in primary_expression\n", input_file_name.c_str(),
-             postfix_expression->get_first_terminal_line_no(), postfix_expression->get_expression().c_str());
-      return 1;
-    }
     unary_expression->symbol = postfix_expression->symbol;
   }
 
@@ -2929,8 +3012,7 @@ postfix_expression
 	| '(' type_name ')' '{' initializer_list ',' '}'
 	;
  */
-int analyze_postfix_expression(std::shared_ptr<ast_node> postfix_expression, semantics_analysis_context &context,
-                               int symbol_type_to_find) {
+int analyze_postfix_expression(std::shared_ptr<ast_node> postfix_expression, semantics_analysis_context &context) {
   int semantics_analysis_result = 0;
 
   // 如果 postfix_expression 是一个 primary_expression 而这个 primary_expression 是一个 identifier
@@ -2941,7 +3023,7 @@ int analyze_postfix_expression(std::shared_ptr<ast_node> postfix_expression, sem
   switch (postfix_expression->node_sub_type) {
   case NODE_TYPE_POSTFIX_EXPRESSION_SUBTYPE_PRIMARY_EXPRESSION: {
     std::shared_ptr<ast_node> primary_expression = postfix_expression->items[0];
-    semantics_analysis_result = analyze_primary_expression(primary_expression, context, symbol_type_to_find);
+    semantics_analysis_result = analyze_primary_expression(primary_expression, context);
     if (semantics_analysis_result)
       return semantics_analysis_result;
     postfix_expression->symbol = primary_expression->symbol;
@@ -2954,7 +3036,7 @@ int analyze_postfix_expression(std::shared_ptr<ast_node> postfix_expression, sem
     std::shared_ptr<ast_node> next_postfix_expression = postfix_expression->items[0];
     std::shared_ptr<ast_node> expression = postfix_expression->items[2];
 
-    semantics_analysis_result = analyze_postfix_expression(next_postfix_expression, context, SYMBOL_TYPE_VARIABLE);
+    semantics_analysis_result = analyze_postfix_expression(next_postfix_expression, context);
     if (semantics_analysis_result)
       return semantics_analysis_result;
     // vector in C is pointer to a vector of elements. like 'int*'
@@ -3010,7 +3092,7 @@ int analyze_postfix_expression(std::shared_ptr<ast_node> postfix_expression, sem
   case NODE_TYPE_POSTFIX_EXPRESSION_SUBTYPE_POSTFIX_EXPRESSION_DOT_IDENTIFIER: {
     // postfix_expression '.' IDENTIFIER
     std::shared_ptr<ast_node> next_postfix_expression = postfix_expression->items[0];
-    semantics_analysis_result = analyze_postfix_expression(next_postfix_expression, context, SYMBOL_TYPE_VARIABLE);
+    semantics_analysis_result = analyze_postfix_expression(next_postfix_expression, context);
     if (semantics_analysis_result)
       return semantics_analysis_result;
 
@@ -3046,7 +3128,7 @@ int analyze_postfix_expression(std::shared_ptr<ast_node> postfix_expression, sem
     // postfix_expression PTR_OP IDENTIFIER
     std::shared_ptr<ast_node> next_postfix_expression = postfix_expression->items[0];
     std::string identifier = *postfix_expression->items[2]->lexeme;
-    semantics_analysis_result = analyze_postfix_expression(next_postfix_expression, context, SYMBOL_TYPE_VARIABLE);
+    semantics_analysis_result = analyze_postfix_expression(next_postfix_expression, context);
     if (semantics_analysis_result)
       return semantics_analysis_result;
 
@@ -3089,7 +3171,7 @@ int analyze_postfix_expression(std::shared_ptr<ast_node> postfix_expression, sem
     // postfix_expression INC_OP
     // postfix_expression DEC_OP
     std::shared_ptr<ast_node> next_postfix_expression = postfix_expression->items[0];
-    semantics_analysis_result = analyze_postfix_expression(next_postfix_expression, context, symbol_type_to_find);
+    semantics_analysis_result = analyze_postfix_expression(next_postfix_expression, context);
     if (semantics_analysis_result)
       return semantics_analysis_result;
 
@@ -3158,24 +3240,18 @@ int check_function_or_pointer_to_function(std::shared_ptr<ast_node> postfix_expr
                                           std::shared_ptr<tsc_type> &out_function_type) {
   int semantics_analysis_result = 0;
   bool function_found = false;
-  semantics_analysis_result = analyze_postfix_expression(postfix_expression, context, SYMBOL_TYPE_FUNCTION);
+  semantics_analysis_result = analyze_postfix_expression(postfix_expression, context);
   if (semantics_analysis_result)
     return semantics_analysis_result;
 
-  if (postfix_expression->symbol && postfix_expression->symbol->type->type_id == TYPE_FUNCTION) {
+  if (postfix_expression->symbol->type->type_id == TYPE_FUNCTION) {
     out_function_type = postfix_expression->symbol->type;
     function_found = true;
   }
-
-  else {
-    // lookup pointer to function
-    semantics_analysis_result = analyze_postfix_expression(postfix_expression, context, SYMBOL_TYPE_VARIABLE);
-    if (semantics_analysis_result)
-      return semantics_analysis_result;
-
-    if (postfix_expression->symbol && postfix_expression->symbol->type->type_id == SCALAR_TYPE_POINTER &&
-        postfix_expression->symbol->type->underlying_type->type_id == TYPE_FUNCTION)
-      function_found = true;
+  // is it pointer to function?
+  else if (postfix_expression->symbol->type->type_id == SCALAR_TYPE_POINTER &&
+           postfix_expression->symbol->type->underlying_type->type_id == TYPE_FUNCTION) {
+    function_found = true;
     out_function_type = postfix_expression->symbol->type->underlying_type;
   }
 
@@ -3199,6 +3275,25 @@ int analyze_argument_expression_list(std::shared_ptr<ast_node> argument_expressi
 
   int semantics_analysis_result = 0;
 
+  std::vector<std::shared_ptr<ast_node>> assignment_expressions;
+  std::shared_ptr<ast_node> node = argument_expression_list;
+  while (node->node_type == NODE_TYPE_ARGUMENT_EXPRESSION_LIST &&
+         node->node_sub_type ==
+             NODE_TYPE_ARGUMENT_EXPRESSION_LIST_SUBTYPE_ARGUMENT_EXPRESSION_LIST_COMMA_ASSIGNMENT_EXPRESSION) {
+    assignment_expressions.push_back(node->items[2]);
+    node = node->items[0];
+  }
+
+  assignment_expressions.push_back(node->items[0]);
+  assignment_expressions =
+      std::vector<std::shared_ptr<ast_node>>(assignment_expressions.rbegin(), assignment_expressions.rend());
+  argument_expression_list->sub_nodes = assignment_expressions;
+  for (std::shared_ptr<ast_node> assignment_expression : assignment_expressions) {
+    semantics_analysis_result = analyze_assignment_expression(assignment_expression, context);
+    if (semantics_analysis_result)
+      return semantics_analysis_result;
+    //todo check with function symbol.注意可变参数
+  }
   return 0;
 }
 
@@ -3211,36 +3306,24 @@ primary_expression
 	| generic_selection
 	;
  */
-int analyze_primary_expression(std::shared_ptr<ast_node> primary_expression, semantics_analysis_context &context,
-                               int symbol_type_to_find) {
+int analyze_primary_expression(std::shared_ptr<ast_node> primary_expression, semantics_analysis_context &context) {
   int semantics_analysis_result = 0;
 
   switch (primary_expression->node_sub_type) {
   case NODE_TYPE_PRIMARY_EXPRESSION_SUBTYPE_IDENTIFIER: {
-    //这里的identifier可能是函数名,变量名或者类型名字. 因为存在同时寻找函数和变量(函数指针)的情况,
+    // 这里的identifier可能是函数名,变量名或者类型名字.
     // 这里在找不到的时候只是将primary_expression的symbol置为nullptr
     std::string symbol_identifier = *primary_expression->items[0]->lexeme;
-    switch (symbol_type_to_find) {
-    case SYMBOL_TYPE_VARIABLE: {
-      std::shared_ptr<tsc_symbol> symbol =
-          lookup_variable_symbol(context.current_symbol_table_node, symbol_identifier, true);
+    std::shared_ptr<tsc_symbol> symbol = lookup_symbol(context.current_symbol_table_node, symbol_identifier, true);
 
-      primary_expression->symbol = symbol;
-      if (symbol && !is_constant(primary_expression) && !primary_expression->symbol->memory_location)
-        primary_expression->symbol->memory_location = std::make_shared<tsc_memory_location>();
-
-    } break;
-    case SYMBOL_TYPE_FUNCTION: {
-      std::shared_ptr<tsc_symbol> symbol =
-          lookup_function_symbol(context.current_symbol_table_node, symbol_identifier, true);
-
-      primary_expression->symbol = symbol;
-    } break;
-    default:
-      printf("%s:%d error:\n\tshould not reach here\n", input_file_name.c_str(),
-             primary_expression->get_first_terminal_line_no());
-      semantics_analysis_result = 1;
+    if (!symbol) {
+      printf("%s:%d error:\n\tidentifier '%s' not found in primary_expression\n", input_file_name.c_str(),
+             primary_expression->get_first_terminal_line_no(), primary_expression->get_expression().c_str());
+      return 1;
     }
+    primary_expression->symbol = symbol;
+    if (symbol && !is_constant(primary_expression) && !primary_expression->symbol->memory_location)
+      primary_expression->symbol->memory_location = std::make_shared<tsc_memory_location>();
 
   }
 
@@ -3344,6 +3427,20 @@ assignment_expression
     : conditional_expression
     | unary_expression assignment_operator assignment_expression
     ;
+
+assignment_operator
+	: '='
+	| MUL_ASSIGN
+	| DIV_ASSIGN
+	| MOD_ASSIGN
+	| ADD_ASSIGN
+	| SUB_ASSIGN
+	| LEFT_ASSIGN
+	| RIGHT_ASSIGN
+	| AND_ASSIGN
+	| XOR_ASSIGN
+	| OR_ASSIGN
+	;
  */
 
 int analyze_assignment_expression(std::shared_ptr<ast_node> assignment_expression,
@@ -3363,6 +3460,7 @@ int analyze_assignment_expression(std::shared_ptr<ast_node> assignment_expressio
   break;
   case NODE_TYPE_ASSIGNMENT_EXPRESSION_SUBTYPE_UNARY_EXPRESSION_ASSIGNMENT_OPERATOR_ASSIGNMENT_EXPRESSION: {
     std::shared_ptr<ast_node> unary_expression = assignment_expression->items[0];
+    std::shared_ptr<ast_node> assignment_operator = assignment_expression->items[1];
     std::shared_ptr<ast_node> next_assignment_expression = assignment_expression->items[2];
 
     semantics_analysis_result = analyze_unary_expression(unary_expression, context);
@@ -3373,7 +3471,80 @@ int analyze_assignment_expression(std::shared_ptr<ast_node> assignment_expressio
     if (semantics_analysis_result)
       return semantics_analysis_result;
 
-    //todo assignment_expression construct symbol
+    if (!unary_expression->symbol->is_left_value) {
+      printf("%s:%d error:\n\tlvalue expected in assignment_expression\n", input_file_name.c_str(),
+             unary_expression->get_first_terminal_line_no());
+      semantics_analysis_result = 1;
+      return semantics_analysis_result;
+    }
+    if (unary_expression->symbol->type->const_type_qualifier_set) {
+      printf("%s:%d error:\n\tcannot assign to variable '%s' with const-qualified type '%s'\n", input_file_name.c_str(),
+             unary_expression->get_first_terminal_line_no(), unary_expression->get_expression().c_str(),
+             unary_expression->symbol->type->internal_name->c_str());
+      semantics_analysis_result = 1;
+      return semantics_analysis_result;
+    }
+
+    int assignment_operator_id = -1;
+    int binary_operator = -1;
+    switch (assignment_operator->node_sub_type) {
+
+    case NODE_TYPE_ASSIGNMENT_OPERATOR_SUBTYPE_ASSIGN:
+      assignment_operator_id = OPERATOR_ASSIGN;
+      break;
+    case NODE_TYPE_ASSIGNMENT_OPERATOR_SUBTYPE_MUL_ASSIGN:
+      assignment_operator_id = OPERATOR_MUL_ASSIGN;
+      binary_operator = BINARY_OPERATOR_MUL;
+      break;
+    case NODE_TYPE_ASSIGNMENT_OPERATOR_SUBTYPE_DIV_ASSIGN:
+      assignment_operator_id = OPERATOR_DIV_ASSIGN;
+      binary_operator = BINARY_OPERATOR_DIV;
+      break;
+    case NODE_TYPE_ASSIGNMENT_OPERATOR_SUBTYPE_MOD_ASSIGN:
+      assignment_operator_id = OPERATOR_MOD_ASSIGN;
+      binary_operator = BINARY_OPERATOR_MOD;
+      break;
+    case NODE_TYPE_ASSIGNMENT_OPERATOR_SUBTYPE_ADD_ASSIGN:
+      assignment_operator_id = OPERATOR_ADD_ASSIGN;
+      binary_operator = BINARY_OPERATOR_ADD;
+      break;
+    case NODE_TYPE_ASSIGNMENT_OPERATOR_SUBTYPE_SUB_ASSIGN:
+      assignment_operator_id = OPERATOR_SUB_ASSIGN;
+      binary_operator = BINARY_OPERATOR_SUB;
+      break;
+    case NODE_TYPE_ASSIGNMENT_OPERATOR_SUBTYPE_LEFT_SHIFT_ASSIGN:
+      assignment_operator_id = OPERATOR_LEFT_SHIFT_ASSIGN;
+      binary_operator = BINARY_OPERATOR_LEFT_SHIFT;
+      break;
+    case NODE_TYPE_ASSIGNMENT_OPERATOR_SUBTYPE_RIGHT_SHIFT_ASSIGN:
+      assignment_operator_id = OPERATOR_RIGHT_SHIFT_ASSIGN;
+      binary_operator = BINARY_OPERATOR_RIGHT_SHIFT;
+      break;
+    case NODE_TYPE_ASSIGNMENT_OPERATOR_SUBTYPE_BITAND_ASSIGN:
+      assignment_operator_id = OPERATOR_BITAND_ASSIGN;
+      binary_operator = BINARY_OPERATOR_BITAND;
+      break;
+    case NODE_TYPE_ASSIGNMENT_OPERATOR_SUBTYPE_BITXOR_ASSIGN:
+      assignment_operator_id = OPERATOR_BITXOR_ASSIGN;
+      binary_operator = BINARY_OPERATOR_BITXOR;
+      break;
+    case NODE_TYPE_ASSIGNMENT_OPERATOR_SUBTYPE_BITOR_ASSIGN:
+      assignment_operator_id = OPERATOR_BITOR_ASSIGN;
+      binary_operator = BINARY_OPERATOR_BITOR;
+      break;
+      break;
+    }
+    if (binary_operator != -1) {
+      // check if binary_operator is valid
+      std::shared_ptr<ast_node> virtual_parent = std::make_shared<ast_node>();
+      virtual_parent->items.push_back(assignment_expression);
+      construct_binary_expression_symbol(virtual_parent, binary_operator, unary_expression, next_assignment_expression);
+    }
+    assignment_expression->symbol = std::make_shared<tsc_symbol>();
+    assignment_expression->symbol->symbol_type = SYMBOL_TYPE_TEMPORARY_VARIABLE;
+    assignment_expression->symbol->operator_id = assignment_operator_id;
+    assignment_expression->symbol->operands.push_back(unary_expression->symbol);
+    assignment_expression->symbol->operands.push_back(next_assignment_expression->symbol);
   }
   }
 
@@ -3592,13 +3763,18 @@ bool is_struct_union_enum_number(const std::shared_ptr<ast_node> &node) {
 }
 bool is_scalar_type(const std::shared_ptr<tsc_type> &type) {
   return type->type_id == SCALAR_TYPE_POINTER ||
-         PRIMITIVE_TYPE_CHAR <= type->type_id && type->type_id <= PRIMITIVE_TYPE_LONG_DOUBLE;
+         (PRIMITIVE_TYPE_CHAR <= type->type_id && type->type_id <= PRIMITIVE_TYPE_LONG_DOUBLE);
 }
 
 bool is_integer(const std::shared_ptr<ast_node> &node) {
   return PRIMITIVE_TYPE_CHAR <= node->symbol->type->type_id &&
          node->symbol->type->type_id <= PRIMITIVE_TYPE_UNSIGNED_LONG_LONG;
 }
+bool is_floating_number(const std::shared_ptr<ast_node> &node) {
+  return PRIMITIVE_TYPE_FLOAT <= node->symbol->type->type_id &&
+         node->symbol->type->type_id <= PRIMITIVE_TYPE_LONG_DOUBLE;
+}
+bool is_number(const std::shared_ptr<ast_node> &node) { return is_integer(node) || is_floating_number(node); }
 
 //根据左右子表达式类型以及运算符表达式进行校验.如果是常量表达式则会求值
 int construct_binary_expression_symbol(std::shared_ptr<ast_node> parent, int binary_operator,
@@ -3639,7 +3815,7 @@ int construct_binary_expression_symbol(std::shared_ptr<ast_node> parent, int bin
   //如果left right都是数值型(包括enum)则结果也是数值型且type_id是left right中type_id较大那个.
   //如果left right较大的是enum结果处理为int.另外如果运算符是&&,||,>,>=,<,<=,==,!=结果类型为int
   int result_type_id;
-  if (is_constant(left) && is_constant(right)) {
+  if (is_number(left) && is_number(right)) {
     result_type_id = std::max(left->symbol->type->type_id, right->symbol->type->type_id);
 
     switch (binary_operator) {
@@ -3709,9 +3885,8 @@ int construct_binary_expression_symbol(std::shared_ptr<ast_node> parent, int bin
   // int f(int i){ return i/0;} warning: division by zero [-Wdiv-by-zero]
   //如果是constant expression但是left是浮点型的,结果会提升为浮点型,此时不需要warning或者error
 
-  if (PRIMITIVE_TYPE_CHAR <= left->symbol->type->type_id &&
-      left->symbol->type->type_id <= PRIMITIVE_TYPE_UNSIGNED_LONG_LONG &&
-      right->symbol->symbol_type == SYMBOL_TYPE_ICONSTANT && right->symbol->value->unsigned_long_long_value == 0ull) {
+  if (is_integer(left) && right->symbol->symbol_type == SYMBOL_TYPE_ICONSTANT &&
+      right->symbol->value->unsigned_long_long_value == 0ull) {
     switch (binary_operator) {
     case BINARY_OPERATOR_DIV:
     case BINARY_OPERATOR_MOD:
@@ -3995,6 +4170,65 @@ int analyze_initializer(std::shared_ptr<ast_node> initializer, semantics_analysi
 bool check_can_assign(const std::shared_ptr<tsc_symbol> &left, const std::shared_ptr<tsc_symbol> &right) {
   //todo
   return true;
+}
+int check_common_type(const std::shared_ptr<ast_node> &first, const std::shared_ptr<ast_node> &second,
+                      std::shared_ptr<tsc_type> &out_type) {
+  int semantics_analysis_result = 0;
+  int result_type_id;
+  if (is_number(first) && is_number(second)) {
+    result_type_id = std::max(first->symbol->type->type_id, second->symbol->type->type_id);
+
+    switch (result_type_id) {
+    case PRIMITIVE_TYPE_CHAR:
+      out_type = global_types::primitive_type_char;
+      break;
+    case PRIMITIVE_TYPE_UNSIGNED_CHAR:
+      out_type = global_types::primitive_type_unsigned_char;
+      break;
+    case PRIMITIVE_TYPE_SHORT:
+      out_type = global_types::primitive_type_short;
+      break;
+    case PRIMITIVE_TYPE_UNSIGNED_SHORT:
+      out_type = global_types::primitive_type_unsigned_short;
+      break;
+    case PRIMITIVE_TYPE_ENUM:
+      out_type = global_types::primitive_type_int;
+      break;
+    case PRIMITIVE_TYPE_INT:
+      out_type = global_types::primitive_type_int;
+      break;
+    case PRIMITIVE_TYPE_UNSIGNED_INT:
+      out_type = global_types::primitive_type_unsigned_int;
+      break;
+    case PRIMITIVE_TYPE_LONG:
+      out_type = global_types::primitive_type_long;
+      break;
+    case PRIMITIVE_TYPE_UNSIGNED_LONG:
+      out_type = global_types::primitive_type_unsigned_long;
+      break;
+    case PRIMITIVE_TYPE_LONG_LONG:
+      out_type = global_types::primitive_type_long_long;
+      break;
+    case PRIMITIVE_TYPE_UNSIGNED_LONG_LONG:
+      out_type = global_types::primitive_type_unsigned_long_long;
+      break;
+    case PRIMITIVE_TYPE_FLOAT:
+      out_type = global_types::primitive_type_float;
+      break;
+    case PRIMITIVE_TYPE_DOUBLE:
+      out_type = global_types::primitive_type_double;
+      break;
+    case PRIMITIVE_TYPE_LONG_DOUBLE:
+      out_type = global_types::primitive_type_long_double;
+      break;
+    default:
+      printf("should not reach here %s:%d\n", __FILE__, __LINE__);
+      return 1;
+    }
+  }
+  //todo 至少一个不是数字
+
+  return semantics_analysis_result;
 }
 
 int add_declarator_identifier_to_symbol_table(std::shared_ptr<ast_node> init_declarator,
@@ -4455,23 +4689,14 @@ std::shared_ptr<tsc_type> construct_array_of(std::shared_ptr<tsc_type> type) {
   return array;
 }
 
-std::shared_ptr<tsc_symbol> lookup_variable_symbol(std::shared_ptr<symbol_table_node> symbol_table_node,
-                                                   const std::string &symbol_identifier, bool search_outer) {
+std::shared_ptr<tsc_symbol> lookup_symbol(std::shared_ptr<symbol_table_node> symbol_table_node,
+                                          const std::string &symbol_identifier, bool search_outer) {
 
   if (symbol_table_node->identifier_and_symbols.find(symbol_identifier) !=
       symbol_table_node->identifier_and_symbols.end())
     return symbol_table_node->identifier_and_symbols[symbol_identifier];
   if (search_outer && symbol_table_node->parent)
-    return lookup_variable_symbol(symbol_table_node->parent, symbol_identifier, search_outer);
-  else
-    return std::shared_ptr<tsc_symbol>();
-}
-std::shared_ptr<tsc_symbol> lookup_function_symbol(std::shared_ptr<symbol_table_node> symbol_table_node,
-                                                   const std::string &symbol_identifier, bool search_outer) {
-  if (symbol_table_node->functions.find(symbol_identifier) != symbol_table_node->identifier_and_symbols.end())
-    return symbol_table_node->identifier_and_symbols[symbol_identifier];
-  if (search_outer && symbol_table_node->parent)
-    return lookup_variable_symbol(symbol_table_node->parent, symbol_identifier, search_outer);
+    return lookup_symbol(symbol_table_node->parent, symbol_identifier, search_outer);
   else
     return std::shared_ptr<tsc_symbol>();
 }

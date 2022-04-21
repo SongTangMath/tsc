@@ -73,7 +73,19 @@ enum {
   OPERATOR_PRE_INC,
   OPERATOR_PRE_DEC,
 
-  OPERATOR_CAST
+  OPERATOR_CAST,
+  OPERATOR_ASSIGN,
+  OPERATOR_MUL_ASSIGN,
+  OPERATOR_DIV_ASSIGN,
+  OPERATOR_MOD_ASSIGN,
+  OPERATOR_ADD_ASSIGN,
+  OPERATOR_SUB_ASSIGN,
+  OPERATOR_LEFT_SHIFT_ASSIGN,
+  OPERATOR_RIGHT_SHIFT_ASSIGN,
+  OPERATOR_BITAND_ASSIGN,
+  OPERATOR_BITXOR_ASSIGN,
+  OPERATOR_BITOR_ASSIGN,
+  OPERATOR_QUESTION_COLON
 };
 
 enum {
@@ -88,7 +100,6 @@ struct symbol_table_node {
   std::shared_ptr<symbol_table_node> parent;
   std::map<std::string, std::shared_ptr<tsc_symbol>> identifier_and_symbols;
   std::map<std::string, std::shared_ptr<tsc_type>> struct_union_enum_names; //通常也称为tags
-  std::map<std::string, std::shared_ptr<tsc_symbol>> functions;
 };
 
 struct semantics_analysis_context {
@@ -158,10 +169,8 @@ int analyze_multiplicative_expression(std::shared_ptr<ast_node> multiplicative_e
 int analyze_cast_expression(std::shared_ptr<ast_node> cast_expression, semantics_analysis_context &context);
 
 int analyze_unary_expression(std::shared_ptr<ast_node> unary_expression, semantics_analysis_context &context);
-int analyze_postfix_expression(std::shared_ptr<ast_node> postfix_expression, semantics_analysis_context &context,
-                               int symbol_type_to_find);
-int analyze_primary_expression(std::shared_ptr<ast_node> primary_expression, semantics_analysis_context &context,
-                               int symbol_type_to_find);
+int analyze_postfix_expression(std::shared_ptr<ast_node> postfix_expression, semantics_analysis_context &context);
+int analyze_primary_expression(std::shared_ptr<ast_node> primary_expression, semantics_analysis_context &context);
 
 int analyze_type_name(std::shared_ptr<ast_node> type_name, semantics_analysis_context &context);
 int analyze_expression(std::shared_ptr<ast_node> expression, semantics_analysis_context &context);
@@ -182,15 +191,16 @@ bool is_floating_constant(const std::shared_ptr<ast_node> &node);
 bool is_constant(const std::shared_ptr<ast_node> &node);
 bool is_array_or_pointer(const std::shared_ptr<ast_node> &node);
 bool is_integer(const std::shared_ptr<ast_node> &node);
+bool is_floating_number(const std::shared_ptr<ast_node> &node);
+bool is_number(const std::shared_ptr<ast_node> &node);
 bool is_integer_or_floating_number(const std::shared_ptr<ast_node> &node);
 bool is_struct_union_enum_number(const std::shared_ptr<ast_node> &node);
 
 bool is_scalar_type(const std::shared_ptr<tsc_type> &type);
 
-std::shared_ptr<tsc_symbol> lookup_variable_symbol(std::shared_ptr<symbol_table_node> symbol_table_node,
-                                                   const std::string &symbol_identifier, bool search_outer);
-std::shared_ptr<tsc_symbol> lookup_function_symbol(std::shared_ptr<symbol_table_node> symbol_table_node,
-                                                   const std::string &symbol_identifier, bool search_outer);
+std::shared_ptr<tsc_symbol> lookup_symbol(std::shared_ptr<symbol_table_node> symbol_table_node,
+                                          const std::string &symbol_identifier, bool search_outer);
+
 std::shared_ptr<tsc_type> lookup_type(std::shared_ptr<symbol_table_node> symbol_table_node,
                                       const std::string &type_name, bool search_outer);
 
@@ -269,4 +279,5 @@ int check_function_or_pointer_to_function(std::shared_ptr<ast_node> postfix_expr
 int analyze_initializer_list(std::shared_ptr<ast_node> initializer_list, semantics_analysis_context &context,
                              std::shared_ptr<tsc_symbol> &symbol_to_initialize);
 
-bool check_can_assign(const std::shared_ptr<tsc_symbol> &left,const std::shared_ptr<tsc_symbol> &right);
+bool check_can_assign(const std::shared_ptr<tsc_symbol> &left, const std::shared_ptr<tsc_symbol> &right);
+int check_common_type(const std::shared_ptr<ast_node> &first,const std::shared_ptr<ast_node> &second,  std::shared_ptr<tsc_type> &out_type);

@@ -877,7 +877,7 @@ assignment_operator
 	{
         ast_node node;
         node.node_type = NODE_TYPE_ASSIGNMENT_OPERATOR;
-        node.node_sub_type = NODE_TYPE_ASSIGNMENT_OPERATOR_SUBTYPE_AND_ASSIGN;
+        node.node_sub_type = NODE_TYPE_ASSIGNMENT_OPERATOR_SUBTYPE_BITAND_ASSIGN;
         node.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //AND_ASSIGN
         $$=node;
     }
@@ -885,7 +885,7 @@ assignment_operator
 	{
         ast_node node;
         node.node_type = NODE_TYPE_ASSIGNMENT_OPERATOR;
-        node.node_sub_type = NODE_TYPE_ASSIGNMENT_OPERATOR_SUBTYPE_XOR_ASSIGN;
+        node.node_sub_type = NODE_TYPE_ASSIGNMENT_OPERATOR_SUBTYPE_BITXOR_ASSIGN;
         node.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //XOR_ASSIGN
         $$=node;
     }
@@ -893,7 +893,7 @@ assignment_operator
 	{
         ast_node node;
         node.node_type = NODE_TYPE_ASSIGNMENT_OPERATOR;
-        node.node_sub_type = NODE_TYPE_ASSIGNMENT_OPERATOR_SUBTYPE_OR_ASSIGN;
+        node.node_sub_type = NODE_TYPE_ASSIGNMENT_OPERATOR_SUBTYPE_BITOR_ASSIGN;
         node.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //OR_ASSIGN
         $$=node;
     }
