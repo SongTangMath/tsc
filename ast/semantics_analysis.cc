@@ -122,26 +122,53 @@ int analyze_function_definition(std::shared_ptr<ast_node> function_definition, s
   std::shared_ptr<ast_node> declarator = function_definition->items[1];
   declarator->symbol = std::make_shared<tsc_symbol>();
   declarator->symbol->type = std::make_shared<tsc_type>();
-  std::shared_ptr<ast_node> out_identifier_node;
+  std::shared_ptr<ast_node> function_identifier_node;
 
   semantics_analysis_result = analyze_declaration_specifiers(declaration_specifiers, context, declarator->symbol,
                                                              DECLARATION_SPECIFIERS_LOCATION_DECLARATION);
   if (semantics_analysis_result)
     return semantics_analysis_result;
-  semantics_analysis_result = analyze_declarator(declarator, context, out_identifier_node);
+  semantics_analysis_result = analyze_declarator(declarator, context, function_identifier_node);
+
   if (semantics_analysis_result)
     return semantics_analysis_result;
-  if (out_identifier_node->symbol->symbol_type != SYMBOL_TYPE_FUNCTION) {
+  std::shared_ptr<tsc_symbol> function_symbol = function_identifier_node->symbol;
+  if (function_symbol->symbol_type != SYMBOL_TYPE_FUNCTION) {
     printf("%s:%d error:\n\texpecting function declarator\n", input_file_name.c_str(),
            declarator->get_first_terminal_line_no());
     return 1;
   }
 
+  std::shared_ptr<symbol_table_node> function_compound_statement_symbol_table_node =
+      std::make_shared<symbol_table_node>();
+  function_compound_statement_symbol_table_node->parent =
+      function_symbol->type->function_signature->parameters_symbol_table_node;
+  std::shared_ptr<symbol_table_node> original_symbol_table_node = context.current_symbol_table_node;
+
+  std::shared_ptr<tsc_function> function = std::make_shared<tsc_function>();
+  function->function_symbol = function_symbol;
+  function->name = *function_symbol->identifier;
+  //todo check compatibility with previous declaration or definition
+
+  for (std::shared_ptr<tsc_function> previous_defined_function : context.functions) {
+    if (previous_defined_function->name == function->name) {
+      printf("%s:%d error:\n\tredefinition of function '%s'\n", input_file_name.c_str(),
+             declarator->get_first_terminal_line_no(), function->name.c_str());
+      return 1;
+    }
+  }
+  //为了递归调用,现在加入符号表.注意这一步要在切换符号表节点之前,保证加入的是全局符号表
+  semantics_analysis_result = add_declarator_identifier_to_symbol_table(declarator, context, function_identifier_node);
+  if (semantics_analysis_result)
+    return semantics_analysis_result;
+
+  context.current_symbol_table_node = function_compound_statement_symbol_table_node;
+
   switch (function_definition->node_sub_type) {
   case NODE_TYPE_FUNCTION_DEFINITION_SUBTYPE_DECLARATION_SPECIFIERS_DECLARATOR_DECLARATION_LIST_COMPOUND_STATEMENT: {
     std::shared_ptr<ast_node> declaration_list = function_definition->items[2];
     std::shared_ptr<ast_node> compound_statement = function_definition->items[3];
-
+    function->compound_statement_node = compound_statement;
     std::vector<std::shared_ptr<ast_node>> declarations;
     std::shared_ptr<ast_node> node = declaration_list;
     while (node->node_type == NODE_TYPE_DECLARATION_LIST &&
@@ -149,24 +176,147 @@ int analyze_function_definition(std::shared_ptr<ast_node> function_definition, s
       declarations.push_back(node->items[1]);
       node = node->items[0];
     }
+    // K&R style跟在参数列表后面的declaration必须有declarator int f(a)double; {} ->error
+    // 并且此时前面的声明必须是K&R的(has_proto=false)
+    std::shared_ptr<tsc_function_signature> function_signature = function_symbol->type->function_signature;
+    if (function_signature->has_proto) {
+      printf("%s:%d error:\n\tinvalid K&R style function declarator\n", input_file_name.c_str(),
+             declarator->get_first_terminal_line_no());
+      return 1;
+    }
 
     declarations.push_back(node->items[0]);
     declarations = std::vector<std::shared_ptr<ast_node>>(declarations.rbegin(), declarations.rend());
-    //todo K&R style 这里需要切换符号表
+    //todo K&R style
+
+    std::set<std::string> parsed_parameter_identifiers;
     for (std::shared_ptr<ast_node> declaration : declarations) {
       std::shared_ptr<tsc_symbol> symbol = std::make_shared<tsc_symbol>();
       symbol->type = std::make_shared<tsc_type>();
       semantics_analysis_result = analyze_declaration(declaration, context, symbol);
+
       if (semantics_analysis_result)
         return semantics_analysis_result;
+      //declaration has form declaration_specifiers init_declarator_list ';'
+      if (declaration->node_sub_type == NODE_TYPE_DECLARATION_SUBTYPE_DECLARATION_SPECIFIERS_SEMI_COLON) {
+        printf("%s:%d error:\n\tdeclaration '%s' does not declare a parameter\n", input_file_name.c_str(),
+               declaration->get_first_terminal_line_no(), declaration->get_expression().c_str());
+        return 1;
+      }
+
+      std::shared_ptr<ast_node> init_declarator_list = declaration->items[1];
+      //initializer not allowed
+      for (std::shared_ptr<ast_node> init_declarator : init_declarator_list->sub_nodes) {
+        if (init_declarator->node_sub_type == NODE_TYPE_INIT_DECLARATOR_SUBTYPE_DECLARATOR_ASSIGN_INITIALIZER) {
+          printf("%s:%d error:\n\t initializer '%s' not allowed in K&R function definition\n", input_file_name.c_str(),
+                 declaration->get_first_terminal_line_no(), init_declarator->get_expression().c_str());
+          return 1;
+        }
+      }
+
+      for (size_t index = 0; index < init_declarator_list->declarator_identifier_nodes.size(); index++) {
+
+        std::shared_ptr<ast_node> declarator_identifier_node = init_declarator_list->declarator_identifier_nodes[index];
+        std::shared_ptr<ast_node> init_declarator = init_declarator_list->sub_nodes[index];
+        std::string parameter_identifier = *declarator_identifier_node->lexeme;
+
+        //void func()int a;{} ->error
+        if (std::find(function_signature->identifiers.begin(), function_signature->identifiers.end(),
+                      parameter_identifier) == function_signature->identifiers.end()) {
+          printf("%s:%d error:\n\t parameter named '%s' is missing\n", input_file_name.c_str(),
+                 declaration->get_first_terminal_line_no(), parameter_identifier.c_str());
+          return 1;
+        }
+
+        // no need to check following error. already checked in analyze_declaration
+        // void func(a)int a;double a{}
+        // analyze_declaration 会将'a'加入符号表
+      }
     }
+
+    semantics_analysis_result = analyze_compound_statement(compound_statement, context, function);
 
   } break;
   case NODE_TYPE_FUNCTION_DEFINITION_SUBTYPE_DECLARATION_SPECIFIERS_DECLARATOR_COMPOUND_STATEMENT: {
+    // possibly K&R style with no parameters void func(){}
     std::shared_ptr<ast_node> compound_statement = function_definition->items[2];
+    function->compound_statement_node = compound_statement;
+    semantics_analysis_result = analyze_compound_statement(compound_statement, context, function);
 
   } break;
   }
+  //恢复符号表节点
+  context.current_symbol_table_node = original_symbol_table_node;
+  context.functions.push_back(function);
+  return semantics_analysis_result;
+}
+
+/*
+compound_statement
+	: '{' '}'
+	| '{'  block_item_list '}'
+	;
+
+block_item_list
+	: block_item
+	| block_item_list block_item
+	;
+
+block_item
+	: declaration
+	| statement
+	;
+*/
+int analyze_compound_statement(std::shared_ptr<ast_node> compound_statement, semantics_analysis_context &context,
+                               std::shared_ptr<tsc_function> function) {
+  int semantics_analysis_result = 0;
+  std::vector<std::shared_ptr<ast_node>> declaration_or_statements;
+
+  switch (compound_statement->node_sub_type) {
+  case NODE_TYPE_COMPOUND_STATEMENT_SUBTYPE_LEFT_BRACE_RIGHT_BRACE:
+    break;
+  case NODE_TYPE_COMPOUND_STATEMENT_SUBTYPE_LEFT_BRACE_BLOCK_ITEM_LIST_RIGHT_BRACE: {
+    std::shared_ptr<ast_node> block_item_list = compound_statement->items[1];
+    std::shared_ptr<ast_node> node = block_item_list;
+
+    while (node->node_type == NODE_TYPE_BLOCK_ITEM_LIST &&
+           node->node_sub_type == NODE_TYPE_BLOCK_ITEM_LIST_SUBTYPE_BLOCK_ITEM_LIST_BLOCK_ITEM) {
+      declaration_or_statements.push_back(node->items[1]);
+      node = node->items[0];
+    }
+
+    declaration_or_statements.push_back(node->items[0]);
+    declaration_or_statements =
+        std::vector<std::shared_ptr<ast_node>>(declaration_or_statements.rbegin(), declaration_or_statements.rend());
+    compound_statement->sub_nodes = declaration_or_statements;
+    for (std::shared_ptr<ast_node> declaration_or_statement : declaration_or_statements) {
+
+      switch (declaration_or_statement->node_sub_type) {
+      case NODE_TYPE_BLOCK_ITEM_SUBTYPE_DECLARATION: {
+        std::shared_ptr<ast_node> declaration = declaration_or_statement->items[0];
+        std::shared_ptr<tsc_symbol> symbol = std::make_shared<tsc_symbol>();
+        symbol->type = std::make_shared<tsc_type>();
+        semantics_analysis_result = analyze_declaration(declaration, context, symbol);
+        if (semantics_analysis_result)
+          return semantics_analysis_result;
+      } break;
+
+      case NODE_TYPE_BLOCK_ITEM_SUBTYPE_STATEMENT: {
+
+        std::shared_ptr<ast_node> statement = declaration_or_statement->items[0];
+        semantics_analysis_result = analyze_statement(statement, context, function);
+        if (semantics_analysis_result)
+          return semantics_analysis_result;
+      } break;
+      }
+    }
+  }
+  }
+  return 0;
+}
+
+int analyze_statement(std::shared_ptr<ast_node> statement, semantics_analysis_context &context,
+                      std::shared_ptr<tsc_function> function) {
   return 0;
 }
 
@@ -1440,6 +1590,7 @@ int analyze_direct_declarator(std::shared_ptr<ast_node> direct_declarator, seman
     next_direct_declarator->symbol->symbol_type = SYMBOL_TYPE_FUNCTION;
     next_direct_declarator->symbol->type = std::make_shared<tsc_type>();
     next_direct_declarator->symbol->type->type_id = TYPE_FUNCTION;
+    next_direct_declarator->symbol->type->internal_name = std::make_shared<std::string>("function");
     next_direct_declarator->symbol->type->function_signature = std::make_shared<tsc_function_signature>();
     next_direct_declarator->symbol->type->function_signature->return_type = direct_declarator->symbol->type;
     next_direct_declarator->symbol->type->function_signature->has_proto = true;
@@ -1458,6 +1609,7 @@ int analyze_direct_declarator(std::shared_ptr<ast_node> direct_declarator, seman
     next_direct_declarator->symbol->symbol_type = SYMBOL_TYPE_FUNCTION;
     next_direct_declarator->symbol->type = std::make_shared<tsc_type>();
     next_direct_declarator->symbol->type->type_id = TYPE_FUNCTION;
+    next_direct_declarator->symbol->type->internal_name = std::make_shared<std::string>("function");
     next_direct_declarator->symbol->type->function_signature = std::make_shared<tsc_function_signature>();
     next_direct_declarator->symbol->type->function_signature->return_type = direct_declarator->symbol->type;
     next_direct_declarator->symbol->type->function_signature->has_proto = false;
@@ -1466,6 +1618,8 @@ int analyze_direct_declarator(std::shared_ptr<ast_node> direct_declarator, seman
     //locate for future use
     next_direct_declarator->symbol->type->function_signature->parameters_symbol_table_node =
         std::make_shared<symbol_table_node>();
+    next_direct_declarator->symbol->type->function_signature->parameters_symbol_table_node->parent =
+        context.current_symbol_table_node;
 
     semantics_analysis_result = analyze_direct_declarator(next_direct_declarator, context, out_identifier_node);
 
@@ -1497,11 +1651,25 @@ int analyze_direct_declarator(std::shared_ptr<ast_node> direct_declarator, seman
     identifier_nodes.push_back(node->items[0]);
     identifier_nodes = std::vector<std::shared_ptr<ast_node>>(identifier_nodes.rbegin(), identifier_nodes.rend());
     identifier_list->sub_nodes = identifier_nodes;
+    //identifier 不能重复
+    std::set<std::string> parameter_identifiers;
     for (std::shared_ptr<ast_node> &identifier_node : identifier_nodes) {
-      next_direct_declarator->symbol->type->function_signature->identifiers.push_back(*identifier_node->lexeme);
+      std::string parameter_identifier = *identifier_node->lexeme;
+      if (parameter_identifiers.find(parameter_identifier) != parameter_identifiers.end()) {
+        printf("%s:%d error:\n\tredefinition of parameter '%s'in direct_declarator '%s'\n", input_file_name.c_str(),
+               direct_declarator->get_first_terminal_line_no(), parameter_identifier.c_str(),
+               direct_declarator->get_expression().c_str());
+        return 1;
+      }
+      parameter_identifiers.insert(parameter_identifier);
+
+      next_direct_declarator->symbol->type->function_signature->identifiers.push_back(parameter_identifier);
     }
+
     next_direct_declarator->symbol->type->function_signature->parameters_symbol_table_node =
         std::make_shared<symbol_table_node>();
+    next_direct_declarator->symbol->type->function_signature->parameters_symbol_table_node->parent =
+        context.current_symbol_table_node;
 
     semantics_analysis_result = analyze_direct_declarator(next_direct_declarator, context, out_identifier_node);
 
@@ -1896,6 +2064,7 @@ int analyze_direct_abstract_declarator(std::shared_ptr<ast_node> direct_abstract
     out_anonymous_symbol = std::make_shared<tsc_symbol>();
     out_anonymous_symbol->symbol_type = SYMBOL_TYPE_FUNCTION;
     out_anonymous_symbol->type = std::make_shared<tsc_type>();
+    out_anonymous_symbol->type->internal_name = std::make_shared<std::string>("function");
     out_anonymous_symbol->type->function_signature->return_type = direct_abstract_declarator->symbol->type;
     out_anonymous_symbol->type->function_signature->has_proto = false;
   } break;
@@ -1907,6 +2076,7 @@ int analyze_direct_abstract_declarator(std::shared_ptr<ast_node> direct_abstract
     out_anonymous_symbol = std::make_shared<tsc_symbol>();
     out_anonymous_symbol->symbol_type = SYMBOL_TYPE_FUNCTION;
     out_anonymous_symbol->type = std::make_shared<tsc_type>();
+    out_anonymous_symbol->type->internal_name = std::make_shared<std::string>("function");
     out_anonymous_symbol->type->function_signature->return_type = direct_abstract_declarator->symbol->type;
     out_anonymous_symbol->type->function_signature->has_proto = true;
     semantics_analysis_result = analyze_parameter_type_list(parameter_type_list, context, out_anonymous_symbol);
@@ -1918,6 +2088,7 @@ int analyze_direct_abstract_declarator(std::shared_ptr<ast_node> direct_abstract
     next_direct_abstract_declarator->symbol = std::make_shared<tsc_symbol>();
     next_direct_abstract_declarator->symbol->symbol_type = SYMBOL_TYPE_FUNCTION;
     next_direct_abstract_declarator->symbol->type = std::make_shared<tsc_type>();
+    next_direct_abstract_declarator->symbol->type->internal_name = std::make_shared<std::string>("function");
     next_direct_abstract_declarator->symbol->type->function_signature->return_type =
         direct_abstract_declarator->symbol->type;
     next_direct_abstract_declarator->symbol->type->function_signature->has_proto = false;
@@ -1936,6 +2107,7 @@ int analyze_direct_abstract_declarator(std::shared_ptr<ast_node> direct_abstract
     next_direct_abstract_declarator->symbol = std::make_shared<tsc_symbol>();
     next_direct_abstract_declarator->symbol->symbol_type = SYMBOL_TYPE_FUNCTION;
     next_direct_abstract_declarator->symbol->type = std::make_shared<tsc_type>();
+    next_direct_abstract_declarator->symbol->type->internal_name = std::make_shared<std::string>("function");
     next_direct_abstract_declarator->symbol->type->function_signature->return_type =
         direct_abstract_declarator->symbol->type;
     next_direct_abstract_declarator->symbol->type->function_signature->has_proto = true;
@@ -3061,10 +3233,14 @@ int analyze_postfix_expression(std::shared_ptr<ast_node> postfix_expression, sem
   case NODE_TYPE_POSTFIX_EXPRESSION_SUBTYPE_POSTFIX_EXPRESSION_LEFT_PARENTHESIS_RIGHT_PARENTHESIS: {
     //postfix_expression '(' ')'
     std::shared_ptr<ast_node> next_postfix_expression = postfix_expression->items[0];
+    postfix_expression->symbol = std::make_shared<tsc_symbol>();
+    postfix_expression->symbol->symbol_type = SYMBOL_TYPE_TEMPORARY_VARIABLE;
+    postfix_expression->symbol->operator_id = OPERATOR_FUNCTION_CALL;
     postfix_expression->symbol->operator_id = OPERATOR_FUNCTION_CALL;
     std::shared_ptr<tsc_type> out_function_type;
     semantics_analysis_result =
         check_function_or_pointer_to_function(next_postfix_expression, context, out_function_type);
+    //todo check arguments
     if (semantics_analysis_result)
       return semantics_analysis_result;
     postfix_expression->symbol->operands.push_back(next_postfix_expression->symbol);
@@ -3074,20 +3250,24 @@ int analyze_postfix_expression(std::shared_ptr<ast_node> postfix_expression, sem
     // postfix_expression '(' argument_expression_list ')'
     std::shared_ptr<ast_node> next_postfix_expression = postfix_expression->items[0];
     std::shared_ptr<ast_node> argument_expression_list = postfix_expression->items[2];
-
+    postfix_expression->symbol = std::make_shared<tsc_symbol>();
+    postfix_expression->symbol->symbol_type = SYMBOL_TYPE_TEMPORARY_VARIABLE;
     postfix_expression->symbol->operator_id = OPERATOR_FUNCTION_CALL;
+
     std::shared_ptr<tsc_type> out_function_type;
     semantics_analysis_result =
         check_function_or_pointer_to_function(next_postfix_expression, context, out_function_type);
     if (semantics_analysis_result)
       return semantics_analysis_result;
 
+    postfix_expression->symbol->type = out_function_type->function_signature->return_type;
+
     semantics_analysis_result = analyze_argument_expression_list(argument_expression_list, context, out_function_type);
     if (semantics_analysis_result)
       return semantics_analysis_result;
 
     postfix_expression->symbol->operands.push_back(next_postfix_expression->symbol);
-
+    //todo push other operands
   } break;
   case NODE_TYPE_POSTFIX_EXPRESSION_SUBTYPE_POSTFIX_EXPRESSION_DOT_IDENTIFIER: {
     // postfix_expression '.' IDENTIFIER
@@ -3119,6 +3299,9 @@ int analyze_postfix_expression(std::shared_ptr<ast_node> postfix_expression, sem
 
       return 1;
     }
+    postfix_expression->symbol = std::make_shared<tsc_symbol>();
+    postfix_expression->symbol->symbol_type = SYMBOL_TYPE_TEMPORARY_VARIABLE;
+    postfix_expression->symbol->type = symbol->type;
     postfix_expression->symbol->operator_id = OPERATOR_MEMBER_ACCESS;
     postfix_expression->symbol->operands.push_back(next_postfix_expression->symbol);
     postfix_expression->symbol->operands.push_back(symbol);
@@ -3161,6 +3344,9 @@ int analyze_postfix_expression(std::shared_ptr<ast_node> postfix_expression, sem
 
       return 1;
     }
+    postfix_expression->symbol = std::make_shared<tsc_symbol>();
+    postfix_expression->symbol->symbol_type = SYMBOL_TYPE_TEMPORARY_VARIABLE;
+    postfix_expression->symbol->type = symbol->type;
     postfix_expression->symbol->operator_id = OPERATOR_POINTER_MEMBER_ACCESS;
     postfix_expression->symbol->operands.push_back(next_postfix_expression->symbol);
     postfix_expression->symbol->operands.push_back(symbol);
@@ -4062,6 +4248,7 @@ int analyze_init_declarator_list(std::shared_ptr<ast_node> init_declarator_list,
     semantics_analysis_result = analyze_init_declarator(init_declarator, context, symbol, out_identifier_node);
     if (semantics_analysis_result)
       return semantics_analysis_result;
+    init_declarator_list->declarator_identifier_nodes.push_back(out_identifier_node);
   }
 
   return semantics_analysis_result;
@@ -4231,7 +4418,7 @@ int check_common_type(const std::shared_ptr<ast_node> &first, const std::shared_
   return semantics_analysis_result;
 }
 
-int add_declarator_identifier_to_symbol_table(std::shared_ptr<ast_node> init_declarator,
+int add_declarator_identifier_to_symbol_table(std::shared_ptr<ast_node> init_declarator_or_declarator,
                                               semantics_analysis_context &context,
                                               std::shared_ptr<ast_node> declarator_identifier_node) {
   // 对于 global variable 可以重复声明.多次声明的时候类型必须一致如
@@ -4254,26 +4441,26 @@ int add_declarator_identifier_to_symbol_table(std::shared_ptr<ast_node> init_dec
         found_same_global_identifier = true;
         if (symbol->is_register) {
           printf("%s:%d error:\n\tregister internal_name not specified for '%s'\n", input_file_name.c_str(),
-                 init_declarator->get_first_terminal_line_no(), identifier.c_str());
+                 init_declarator_or_declarator->get_first_terminal_line_no(), identifier.c_str());
           return 1;
         }
         //restrict则必须是指针
         if (symbol->type->restrict_type_qualifier_set && symbol->type->type_id != SCALAR_TYPE_POINTER) {
           printf("%s:%d error:\n\tinvalid use of restrict for '%s' d\n", input_file_name.c_str(),
-                 init_declarator->get_first_terminal_line_no(), identifier.c_str());
+                 init_declarator_or_declarator->get_first_terminal_line_no(), identifier.c_str());
           return 1;
         }
 
         if (!check_same_type(it->second->type, symbol->type)) {
           printf("%s:%d error:\n\tconflicting types for '%s'\n", input_file_name.c_str(),
-                 init_declarator->get_first_terminal_line_no(), identifier.c_str());
+                 init_declarator_or_declarator->get_first_terminal_line_no(), identifier.c_str());
           return 1;
         }
       } else {
         // 局部变量不可同名.实际上gcc对于两个同名变量的报错更精细一些.考虑是否有一个是extern的.
         // todo 局部变量中的函数可以重复声明
         printf("%s:%d error:\n\tredeclaration of identifier '%s'\n", input_file_name.c_str(),
-               init_declarator->get_first_terminal_line_no(), identifier.c_str());
+               init_declarator_or_declarator->get_first_terminal_line_no(), identifier.c_str());
         return 1;
       }
     }

@@ -102,10 +102,18 @@ struct symbol_table_node {
   std::map<std::string, std::shared_ptr<tsc_type>> struct_union_enum_names; //通常也称为tags
 };
 
+struct tsc_function {
+    std::string name;
+    std::shared_ptr<tsc_symbol> function_symbol;
+    std::shared_ptr<ast_node> compound_statement_node;
+
+};
+
 struct semantics_analysis_context {
   //符号表允许struct tag,变量名或者函数名可以相同.例如 struct A{}; int A; OK.
   // void func(); int func; OK
   std::shared_ptr<symbol_table_node> current_symbol_table_node;
+  std::vector<std::shared_ptr<tsc_function>>functions;
 };
 
 int semantics_analysis(std::shared_ptr<ast_node> translation_unit);
@@ -247,7 +255,7 @@ int analyze_type_qualifier_list(std::shared_ptr<ast_node> type_qualifier_list, s
 int analyze_init_declarator(std::shared_ptr<ast_node> init_declarator, semantics_analysis_context &context,
                             std::shared_ptr<tsc_symbol> &symbol, std::shared_ptr<ast_node> &out_identifier_node);
 
-int add_declarator_identifier_to_symbol_table(std::shared_ptr<ast_node> init_declarator,
+int add_declarator_identifier_to_symbol_table(std::shared_ptr<ast_node> init_declarator_or_declarator,
                                               semantics_analysis_context &context,
                                               std::shared_ptr<ast_node> declarator_identifier_node);
 
@@ -281,3 +289,9 @@ int analyze_initializer_list(std::shared_ptr<ast_node> initializer_list, semanti
 
 bool check_can_assign(const std::shared_ptr<tsc_symbol> &left, const std::shared_ptr<tsc_symbol> &right);
 int check_common_type(const std::shared_ptr<ast_node> &first,const std::shared_ptr<ast_node> &second,  std::shared_ptr<tsc_type> &out_type);
+
+int analyze_compound_statement(std::shared_ptr<ast_node> compound_statement, semantics_analysis_context &context,
+                             std::shared_ptr<tsc_function> function);
+
+int analyze_statement(std::shared_ptr<ast_node> statement, semantics_analysis_context &context,
+                               std::shared_ptr<tsc_function> function);

@@ -241,9 +241,10 @@ postfix_expression
         ast_node node;
         node.node_type = NODE_TYPE_POSTFIX_EXPRESSION;
         node.node_sub_type = NODE_TYPE_POSTFIX_EXPRESSION_SUBTYPE_POSTFIX_EXPRESSION_LEFT_PARENTHESIS_ARGUMENT_EXPRESSION_LIST_RIGHT_PARENTHESIS;
-        node.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //DEFAULT
-		node.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //COLON
-		node.items.push_back(std::shared_ptr<ast_node>(new ast_node($3))); //assignment_expression
+        node.items.push_back(std::shared_ptr<ast_node>(new ast_node($1))); //postfix_expression
+		node.items.push_back(std::shared_ptr<ast_node>(new ast_node($2))); //LEFT_PARENTHESIS
+		node.items.push_back(std::shared_ptr<ast_node>(new ast_node($3))); //argument_expression_list
+		node.items.push_back(std::shared_ptr<ast_node>(new ast_node($4))); //RIGHT_PARENTHESIS
         $$=node;
     }
 	| postfix_expression DOT IDENTIFIER

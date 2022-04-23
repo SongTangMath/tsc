@@ -624,8 +624,11 @@ struct ast_node {
 
   //used when this node is initializer_list
   std::vector<std::vector<std::shared_ptr<ast_node>>> initializer_or_designation_initializers;
+  //used when this node is initializer_list
+  std::vector<std::shared_ptr<ast_node>> declarator_identifier_nodes;
 
-  std::string get_expression();
+
+    std::string get_expression();
   int get_first_terminal_line_no();
 };
 
