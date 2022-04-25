@@ -603,6 +603,8 @@ struct global_types {
 std::shared_ptr<tsc_type> construct_pointer_to(std::shared_ptr<tsc_type> type);
 std::shared_ptr<tsc_type> construct_array_of(std::shared_ptr<tsc_type> type);
 
+
+struct tsc_statement_context{};
 //语法树节点
 
 struct ast_node {
@@ -627,8 +629,10 @@ struct ast_node {
   //used when this node is initializer_list
   std::vector<std::shared_ptr<ast_node>> declarator_identifier_nodes;
 
+  //used for statement nodes
+  std::shared_ptr<tsc_statement_context>statement_context;
 
-    std::string get_expression();
+  std::string get_expression();
   int get_first_terminal_line_no();
 };
 

@@ -1,6 +1,6 @@
 #include "parser.h"
 #include <map>
-
+#include <set>
 enum {
   PRIMITIVE_TYPE_VOID,
   PRIMITIVE_TYPE_CHAR,
@@ -103,17 +103,18 @@ struct symbol_table_node {
 };
 
 struct tsc_function {
-    std::string name;
-    std::shared_ptr<tsc_symbol> function_symbol;
-    std::shared_ptr<ast_node> compound_statement_node;
+  std::string name;
+  std::shared_ptr<tsc_symbol> function_symbol;
+  std::shared_ptr<ast_node> compound_statement_node;
 
+  std::set<std::string> labels;
 };
 
 struct semantics_analysis_context {
   //符号表允许struct tag,变量名或者函数名可以相同.例如 struct A{}; int A; OK.
   // void func(); int func; OK
   std::shared_ptr<symbol_table_node> current_symbol_table_node;
-  std::vector<std::shared_ptr<tsc_function>>functions;
+  std::vector<std::shared_ptr<tsc_function>> functions;
 };
 
 int semantics_analysis(std::shared_ptr<ast_node> translation_unit);
@@ -288,10 +289,26 @@ int analyze_initializer_list(std::shared_ptr<ast_node> initializer_list, semanti
                              std::shared_ptr<tsc_symbol> &symbol_to_initialize);
 
 bool check_can_assign(const std::shared_ptr<tsc_symbol> &left, const std::shared_ptr<tsc_symbol> &right);
-int check_common_type(const std::shared_ptr<ast_node> &first,const std::shared_ptr<ast_node> &second,  std::shared_ptr<tsc_type> &out_type);
+int check_common_type(const std::shared_ptr<ast_node> &first, const std::shared_ptr<ast_node> &second,
+                      std::shared_ptr<tsc_type> &out_type);
 
 int analyze_compound_statement(std::shared_ptr<ast_node> compound_statement, semantics_analysis_context &context,
-                             std::shared_ptr<tsc_function> function);
+                               std::shared_ptr<tsc_function> function, std::shared_ptr<ast_node> parent_statement);
 
 int analyze_statement(std::shared_ptr<ast_node> statement, semantics_analysis_context &context,
-                               std::shared_ptr<tsc_function> function);
+                      std::shared_ptr<tsc_function> function, std::shared_ptr<ast_node> parent_statement);
+
+int analyze_labeled_statement(std::shared_ptr<ast_node> labeled_statement, semantics_analysis_context &context,
+                              std::shared_ptr<tsc_function> function, std::shared_ptr<ast_node> parent_statement);
+
+int analyze_expression_statement(std::shared_ptr<ast_node> expression_statement, semantics_analysis_context &context,
+                                 std::shared_ptr<tsc_function> function, std::shared_ptr<ast_node> parent_statement);
+
+int analyze_selection_statement(std::shared_ptr<ast_node> selection_statement, semantics_analysis_context &context,
+                                std::shared_ptr<tsc_function> function, std::shared_ptr<ast_node> parent_statement);
+
+int analyze_iteration_statement(std::shared_ptr<ast_node> iteration_statement, semantics_analysis_context &context,
+                                std::shared_ptr<tsc_function> function, std::shared_ptr<ast_node> parent_statement);
+
+int analyze_jump_statement(std::shared_ptr<ast_node> jump_statement, semantics_analysis_context &context,
+                           std::shared_ptr<tsc_function> function, std::shared_ptr<ast_node> parent_statement);

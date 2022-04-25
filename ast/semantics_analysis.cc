@@ -163,7 +163,8 @@ int analyze_function_definition(std::shared_ptr<ast_node> function_definition, s
     return semantics_analysis_result;
 
   context.current_symbol_table_node = function_compound_statement_symbol_table_node;
-
+  //nullptr
+  std::shared_ptr<ast_node> parent_statement;
   switch (function_definition->node_sub_type) {
   case NODE_TYPE_FUNCTION_DEFINITION_SUBTYPE_DECLARATION_SPECIFIERS_DECLARATOR_DECLARATION_LIST_COMPOUND_STATEMENT: {
     std::shared_ptr<ast_node> declaration_list = function_definition->items[2];
@@ -187,7 +188,6 @@ int analyze_function_definition(std::shared_ptr<ast_node> function_definition, s
 
     declarations.push_back(node->items[0]);
     declarations = std::vector<std::shared_ptr<ast_node>>(declarations.rbegin(), declarations.rend());
-    //todo K&R style
 
     std::set<std::string> parsed_parameter_identifiers;
     for (std::shared_ptr<ast_node> declaration : declarations) {
@@ -234,14 +234,14 @@ int analyze_function_definition(std::shared_ptr<ast_node> function_definition, s
       }
     }
 
-    semantics_analysis_result = analyze_compound_statement(compound_statement, context, function);
+    semantics_analysis_result = analyze_compound_statement(compound_statement, context, function, parent_statement);
 
   } break;
   case NODE_TYPE_FUNCTION_DEFINITION_SUBTYPE_DECLARATION_SPECIFIERS_DECLARATOR_COMPOUND_STATEMENT: {
     // possibly K&R style with no parameters void func(){}
     std::shared_ptr<ast_node> compound_statement = function_definition->items[2];
     function->compound_statement_node = compound_statement;
-    semantics_analysis_result = analyze_compound_statement(compound_statement, context, function);
+    semantics_analysis_result = analyze_compound_statement(compound_statement, context, function, parent_statement);
 
   } break;
   }
@@ -268,7 +268,7 @@ block_item
 	;
 */
 int analyze_compound_statement(std::shared_ptr<ast_node> compound_statement, semantics_analysis_context &context,
-                               std::shared_ptr<tsc_function> function) {
+                               std::shared_ptr<tsc_function> function, std::shared_ptr<ast_node> parent_statement) {
   int semantics_analysis_result = 0;
   std::vector<std::shared_ptr<ast_node>> declaration_or_statements;
 
@@ -304,7 +304,8 @@ int analyze_compound_statement(std::shared_ptr<ast_node> compound_statement, sem
       case NODE_TYPE_BLOCK_ITEM_SUBTYPE_STATEMENT: {
 
         std::shared_ptr<ast_node> statement = declaration_or_statement->items[0];
-        semantics_analysis_result = analyze_statement(statement, context, function);
+        //这里直接透传parent_statement
+        semantics_analysis_result = analyze_statement(statement, context, function, parent_statement);
         if (semantics_analysis_result)
           return semantics_analysis_result;
       } break;
@@ -315,9 +316,148 @@ int analyze_compound_statement(std::shared_ptr<ast_node> compound_statement, sem
   return 0;
 }
 
+/*
+statement
+: labeled_statement
+| compound_statement
+| expression_statement
+| selection_statement
+| iteration_statement
+| jump_statement
+;
+*/
+
 int analyze_statement(std::shared_ptr<ast_node> statement, semantics_analysis_context &context,
-                      std::shared_ptr<tsc_function> function) {
-  return 0;
+                      std::shared_ptr<tsc_function> function, std::shared_ptr<ast_node> parent_statement) {
+  int semantics_analysis_result = 0;
+  switch (statement->node_sub_type) {
+  case NODE_TYPE_STATEMENT_SUBTYPE_LABELED_STATEMENT: {
+    std::shared_ptr<ast_node> labeled_statement = statement->items[0];
+    semantics_analysis_result = analyze_labeled_statement(labeled_statement, context, function, parent_statement);
+  } break;
+  case NODE_TYPE_STATEMENT_SUBTYPE_COMPOUND_STATEMENT: {
+    std::shared_ptr<ast_node> compound_statement = statement->items[0];
+    std::shared_ptr<symbol_table_node> original_symbol_table_node = context.current_symbol_table_node;
+    context.current_symbol_table_node = std::make_shared<symbol_table_node>();
+    context.current_symbol_table_node->parent = original_symbol_table_node;
+    semantics_analysis_result = analyze_compound_statement(compound_statement, context, function, parent_statement);
+    if (semantics_analysis_result)
+      return semantics_analysis_result;
+    context.current_symbol_table_node = original_symbol_table_node;
+  } break;
+  case NODE_TYPE_STATEMENT_SUBTYPE_EXPRESSION_STATEMENT: {
+    std::shared_ptr<ast_node> expression_statement = statement->items[0];
+    semantics_analysis_result = analyze_expression_statement(expression_statement, context, function, parent_statement);
+  } break;
+  case NODE_TYPE_STATEMENT_SUBTYPE_SELECTION_STATEMENT: {
+    std::shared_ptr<ast_node> selection_statement = statement->items[0];
+    semantics_analysis_result = analyze_selection_statement(selection_statement, context, function, parent_statement);
+  } break;
+  case NODE_TYPE_STATEMENT_SUBTYPE_ITERATION_STATEMENT: {
+    std::shared_ptr<ast_node> iteration_statement = statement->items[0];
+    semantics_analysis_result = analyze_iteration_statement(iteration_statement, context, function, parent_statement);
+  } break;
+  case NODE_TYPE_STATEMENT_SUBTYPE_JUMP_STATEMENT: {
+    std::shared_ptr<ast_node> jump_statement = statement->items[0];
+    semantics_analysis_result = analyze_jump_statement(jump_statement, context, function, parent_statement);
+  } break;
+  }
+  return semantics_analysis_result;
+}
+
+/*
+labeled_statement
+	: IDENTIFIER ':' statement
+	| CASE constant_expression ':' statement
+	| DEFAULT ':' statement
+	;
+*/
+
+int analyze_labeled_statement(std::shared_ptr<ast_node> labeled_statement, semantics_analysis_context &context,
+                              std::shared_ptr<tsc_function> function, std::shared_ptr<ast_node> parent_statement) {
+  int semantics_analysis_result = 0;
+  switch (labeled_statement->node_sub_type) {
+  case NODE_TYPE_LABELED_STATEMENT_SUBTYPE_IDENTIFIER_COLON_STATEMENT: {
+    // label names shall be unique within a function.
+    std::string identifier = *labeled_statement->items[0]->lexeme;
+    std::shared_ptr<ast_node> statement = labeled_statement->items[2];
+
+    if (function->labels.find(identifier) != function->labels.end()) {
+      printf("%s:%d error:\n\tredefinition of label '%s'\n", input_file_name.c_str(),
+             labeled_statement->get_first_terminal_line_no(), identifier.c_str());
+      return 1;
+    }
+
+    semantics_analysis_result = analyze_statement(statement, context, function, parent_statement);
+
+  } break;
+  case NODE_TYPE_LABELED_STATEMENT_SUBTYPE_CASE_CONSTANT_EXPRESSION_COLON_STATEMENT: {
+    //todo check parent is switch statement
+    if (!parent_statement) {
+      printf("%s:%d error:\n\t'case' statement not in switch statement\n", input_file_name.c_str(),
+             labeled_statement->get_first_terminal_line_no());
+      return 1;
+    }
+  } break;
+  case NODE_TYPE_LABELED_STATEMENT_SUBTYPE_DEFAULT_COLON_STATEMENT: {
+
+  } break;
+  }
+
+  return semantics_analysis_result;
+}
+/*
+expression_statement
+	: ';'
+	| expression ';'
+	;
+
+*/
+int analyze_expression_statement(std::shared_ptr<ast_node> expression_statement, semantics_analysis_context &context,
+                                 std::shared_ptr<tsc_function> function, std::shared_ptr<ast_node> parent_statement) {
+  int semantics_analysis_result = 0;
+  return semantics_analysis_result;
+}
+/*
+selection_statement
+	: IF '(' expression ')' statement ELSE statement
+	| IF '(' expression ')' statement
+	| SWITCH '(' expression ')' statement
+	;
+*/
+int analyze_selection_statement(std::shared_ptr<ast_node> selection_statement, semantics_analysis_context &context,
+                                std::shared_ptr<tsc_function> function, std::shared_ptr<ast_node> parent_statement) {
+  int semantics_analysis_result = 0;
+  return semantics_analysis_result;
+}
+/*
+iteration_statement
+	: WHILE '(' expression ')' statement
+	| DO statement WHILE '(' expression ')' ';'
+	| FOR '(' expression_statement expression_statement ')' statement
+	| FOR '(' expression_statement expression_statement expression ')' statement
+	| FOR '(' declaration expression_statement ')' statement
+	| FOR '(' declaration expression_statement expression ')' statement
+	;
+*/
+int analyze_iteration_statement(std::shared_ptr<ast_node> iteration_statement, semantics_analysis_context &context,
+                                std::shared_ptr<tsc_function> function, std::shared_ptr<ast_node> parent_statement) {
+  int semantics_analysis_result = 0;
+  return semantics_analysis_result;
+}
+/*
+jump_statement
+	: GOTO IDENTIFIER ';'
+	| CONTINUE ';'
+	| BREAK ';'
+	| RETURN ';'
+	| RETURN expression ';'
+	;
+*/
+int analyze_jump_statement(std::shared_ptr<ast_node> jump_statement, semantics_analysis_context &context,
+                           std::shared_ptr<tsc_function> function, std::shared_ptr<ast_node> parent_statement) {
+  int semantics_analysis_result = 0;
+  return semantics_analysis_result;
 }
 
 /*
