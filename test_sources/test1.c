@@ -1,4 +1,6 @@
+int* global_pointer;
 void* malloc(unsigned long);
+int printf( char* fmt,...);
 int func(var)int var;{
     int a[4];
     int *b = malloc(16);

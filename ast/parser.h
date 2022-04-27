@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <set>
 #define TSC_DEBUG
 #define YYSTYPE ast_node
 
@@ -534,10 +535,10 @@ struct tsc_symbol {
   bool is_static = false;
   bool is_register = false;
 
-  bool is_left_value;
+  bool is_left_value=true;
 
   bool is_anonymous = false;
-  bool is_bit_field;
+  bool is_bit_field= false;
   int bit_field_length;
   int offset;
 
@@ -603,8 +604,15 @@ struct global_types {
 std::shared_ptr<tsc_type> construct_pointer_to(std::shared_ptr<tsc_type> type);
 std::shared_ptr<tsc_type> construct_array_of(std::shared_ptr<tsc_type> type);
 
+struct tsc_switch_statement_context{
+    std::set<int>case_constant_values;
 
-struct tsc_statement_context{};
+};
+
+struct tsc_statement_context{
+    int statement_type;
+    std::shared_ptr<tsc_switch_statement_context> switch_statement_context;
+};
 //语法树节点
 
 struct ast_node {

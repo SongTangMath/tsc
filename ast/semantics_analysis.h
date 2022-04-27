@@ -94,6 +94,15 @@ enum {
   DECLARATION_SPECIFIERS_LOCATION_PARAMETER_LIST
 };
 
+enum {
+    STATEMENT_TYPE_COMPOUND_STATEMENT,
+    STATEMENT_TYPE_LABELED_STATEMENT,
+    STATEMENT_TYPE_EXPRESSION_STATEMENT,
+    STATEMENT_TYPE_SELECTION_STATEMENT,
+    STATEMENT_TYPE_ITERATION_STATEMENT,
+    STATEMENT_TYPE_JUMP_STATEMENT
+};
+
 void setup_type_system();
 
 struct symbol_table_node {
@@ -214,6 +223,8 @@ std::shared_ptr<tsc_type> lookup_type(std::shared_ptr<symbol_table_node> symbol_
                                       const std::string &type_name, bool search_outer);
 
 int construct_binary_expression_symbol(std::shared_ptr<ast_node> parent, int binary_operator,
+                                       std::shared_ptr<ast_node> left, std::shared_ptr<ast_node> right);
+int construct_binary_expression_symbol_type(std::shared_ptr<ast_node> parent, int binary_operator,
                                        std::shared_ptr<ast_node> left, std::shared_ptr<ast_node> right);
 
 int construct_unary_expression_symbol(std::shared_ptr<ast_node> parent, int unary_operator,
