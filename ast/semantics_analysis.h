@@ -2,6 +2,12 @@
 #include <map>
 #include <set>
 
+enum
+{
+    TSC_OK=0,
+    TSC_WARNING,
+    TSC_ERROR
+};
 enum {
     PRIMITIVE_TYPE_VOID,
     PRIMITIVE_TYPE_CHAR,
@@ -168,6 +174,10 @@ bool check_type_compatibility(std::shared_ptr<tsc_type> type1, std::shared_ptr<t
 bool check_same_type(std::shared_ptr<tsc_type> type1, std::shared_ptr<tsc_type> type2, bool consider_const);
 
 bool check_complete_type(std::shared_ptr<tsc_type> type);
+
+int check_function_call(std::shared_ptr<ast_node> postfix_expression,std::shared_ptr<tsc_function_signature> function_signature,
+                         std::vector<std::shared_ptr<tsc_symbol>> argument_symbols);
+
 
 int analyze_enumerator_list(std::shared_ptr<ast_node> enumerator_list, semantics_analysis_context &context,
                             std::shared_ptr<tsc_symbol> &symbol);
@@ -342,7 +352,7 @@ int analyze_designation(std::shared_ptr<ast_node> designation, semantics_analysi
 int analyze_designator(std::shared_ptr<ast_node> designator, semantics_analysis_context &context,
                         std::shared_ptr<tsc_symbol> &designated_symbol_to_initialize);
 
-bool check_can_assign(const std::shared_ptr<tsc_symbol> &left, const std::shared_ptr<tsc_symbol> &right);
+int check_can_assign(const std::shared_ptr<tsc_symbol> &left, const std::shared_ptr<tsc_symbol> &right);
 
 int check_common_type(const std::shared_ptr<ast_node> &first, const std::shared_ptr<ast_node> &second,
                       std::shared_ptr<tsc_type> &out_type);

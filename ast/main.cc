@@ -5,7 +5,7 @@
 
 int main() {
     setup_type_system();
-    input_file_name = "../test_sources/test3.c";
+    input_file_name = "../test_sources/test4.c";
     FILE *file = fopen(input_file_name.c_str(), "r+");
     if (!file) {
         printf("no such file\n");
